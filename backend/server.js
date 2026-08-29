@@ -41,7 +41,7 @@ function buildTree(rows) {
 app.get("/api/blocks", async (req, res) => {
   try {
     const { rows } = await pool.query(
-      "SELECT id, parent_id, title, body FROM blocks ORDER BY id ASC"
+      "SELECT id, parent_id, title, body FROM blocks ORDER BY id ASC",
     );
     res.json(buildTree(rows));
   } catch (err) {
@@ -62,7 +62,7 @@ app.post("/api/blocks", async (req, res) => {
       `INSERT INTO blocks (parent_id, title, body)
        VALUES ($1, $2, $3)
        RETURNING id, parent_id, title, body`,
-      [parentId ?? null, title.trim(), body ? body.trim() : ""]
+      [parentId ?? null, title.trim(), body ? body.trim() : ""],
     );
     const row = rows[0];
     res.status(201).json({
@@ -74,6 +74,32 @@ app.post("/api/blocks", async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Failed to create block" });
+  }
+});
+
+app.patch("/api/blocks/:id", async (req, res) => {
+  const { id } = req.params;
+  const { title, body } = req.body;
+
+  if (!title || !title.trim()) {
+    return res.status(400).json({ error: "Title is required" });
+  }
+
+  try {
+    const { rows } = await pool.query(
+      `UPDATE blocks
+       SET title = $1, body = $2
+       WHERE id = $3
+       RETURNING id, parent_id, title, body`,
+      [title.trim(), body ? body.trim() : "", id],
+    );
+    if (rows.length === 0) {
+      return res.status(404).json({ error: "Block not found" });
+    }
+    res.json(rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to update block" });
   }
 });
 

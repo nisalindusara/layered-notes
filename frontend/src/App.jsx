@@ -123,6 +123,19 @@ const styles = {
     transition:
       "border-color 120ms ease, color 120ms ease, background 120ms ease",
   },
+  editButton: {
+    marginLeft: 8,
+    padding: "3px 9px",
+    background: "transparent",
+    border: "1px solid transparent",
+    borderRadius: 3,
+    color: "#7B8492",
+    fontFamily: "'Inter', sans-serif",
+    fontSize: 12,
+    fontWeight: 500,
+    cursor: "pointer",
+    flexShrink: 0,
+  },
   plusGlyph: {
     fontFamily: FONTFAMILY,
     fontSize: 16,
@@ -258,9 +271,28 @@ function findNode(nodes, id) {
   return null;
 }
 
-function AddDialog({ contextLabel, saving, onSave, onCancel }) {
-  const [title, setTitle] = useState("");
-  const [body, setBody] = useState("");
+function updateNodeInTree(nodes, id, updates) {
+  return nodes.map((n) => {
+    if (n.id === id) return { ...n, ...updates };
+    if (n.children && n.children.length) {
+      return { ...n, children: updateNodeInTree(n.children, id, updates) };
+    }
+    return n;
+  });
+}
+
+function AddDialog({
+  heading = "Add an entry",
+  contextLabel,
+  initialTitle = "",
+  initialBody = "",
+  submitLabel = "Save",
+  saving,
+  onSave,
+  onCancel,
+}) {
+  const [title, setTitle] = useState(initialTitle);
+  const [body, setBody] = useState(initialBody);
   const titleRef = useRef(null);
 
   useEffect(() => {
@@ -287,7 +319,7 @@ function AddDialog({ contextLabel, saving, onSave, onCancel }) {
         onKeyDown={handleKeyDown}
       >
         <div style={styles.dialogEyebrow}>{contextLabel}</div>
-        <h2 style={styles.dialogTitle}>Add an entry</h2>
+        <h2 style={styles.dialogTitle}>{heading}</h2>
 
         <label style={styles.fieldLabel} htmlFor="block-title">
           Title
@@ -325,7 +357,7 @@ function AddDialog({ contextLabel, saving, onSave, onCancel }) {
             onClick={handleSave}
             disabled={!canSave}
           >
-            {saving ? "Saving…" : "Save"}
+            {saving ? "Saving…" : submitLabel}
           </button>
         </div>
       </div>
@@ -333,7 +365,14 @@ function AddDialog({ contextLabel, saving, onSave, onCancel }) {
   );
 }
 
-function BlockNode({ block, label, expandedIds, onToggle, onRequestAdd }) {
+function BlockNode({
+  block,
+  label,
+  expandedIds,
+  onToggle,
+  onRequestAdd,
+  onRequestEdit,
+}) {
   const [hovered, setHovered] = useState(false);
   const expanded = expandedIds.has(block.id);
   const children = block.children || [];
@@ -366,6 +405,23 @@ function BlockNode({ block, label, expandedIds, onToggle, onRequestAdd }) {
         >
           <span style={styles.tab}>{label}</span>
           <h3 style={styles.cardTitle}>{block.title}</h3>
+          <button
+            style={styles.editButton}
+            onClick={(e) => {
+              e.stopPropagation();
+              onRequestEdit(block);
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.color = "#1B2430";
+              e.currentTarget.style.borderColor = "#D3D8E2";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.color = "#7B8492";
+              e.currentTarget.style.borderColor = "transparent";
+            }}
+          >
+            Edit
+          </button>
           <span
             style={{
               ...styles.chevron,
@@ -394,6 +450,7 @@ function BlockNode({ block, label, expandedIds, onToggle, onRequestAdd }) {
                     expandedIds={expandedIds}
                     onToggle={onToggle}
                     onRequestAdd={onRequestAdd}
+                    onRequestEdit={onRequestEdit}
                   />
                 ))}
               </div>
@@ -445,6 +502,7 @@ export default function BlockPlatform() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
+  const [editingBlock, setEditingBlock] = useState(null);
 
   const loadTree = () => {
     setLoading(true);
@@ -490,6 +548,31 @@ export default function BlockPlatform() {
     }
   };
 
+  const handleEditSave = async ({ title, body }) => {
+    setSaving(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/blocks/${editingBlock.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title, body }),
+      });
+      if (!res.ok) throw new Error(`Server responded ${res.status}`);
+      const updated = await res.json();
+
+      setTree((prev) =>
+        updateNodeInTree(prev, updated.id, {
+          title: updated.title,
+          body: updated.body,
+        }),
+      );
+      setEditingBlock(null);
+    } catch (err) {
+      setError(`Couldn't save changes: ${err.message}`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const toggleExpanded = (id) => {
     setExpandedIds((prev) => {
       const next = new Set(prev);
@@ -529,6 +612,7 @@ export default function BlockPlatform() {
               expandedIds={expandedIds}
               onToggle={toggleExpanded}
               onRequestAdd={(parentId) => setDialogParentId(parentId)}
+              onRequestEdit={(b) => setEditingBlock(b)}
             />
           ))}
         </div>
@@ -564,6 +648,18 @@ export default function BlockPlatform() {
           saving={saving}
           onSave={handleSave}
           onCancel={() => setDialogParentId(undefined)}
+        />
+      )}
+      {editingBlock && (
+        <AddDialog
+          heading="Edit entry"
+          contextLabel={`Editing: ${editingBlock.title}`}
+          initialTitle={editingBlock.title}
+          initialBody={editingBlock.body}
+          submitLabel="Save changes"
+          saving={saving}
+          onSave={handleEditSave}
+          onCancel={() => setEditingBlock(null)}
         />
       )}
     </div>
