@@ -2,8 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:4000";
 
-const INDENT = 28;
-const FONTFAMILY = '"DM Sans", sans-serif';
+const FONTFAMILY = "'Google Sans', sans-serif";
 
 const styles = {
   page: {
@@ -11,12 +10,20 @@ const styles = {
     background: "#EAEDF3",
     fontFamily: FONTFAMILY,
     color: "#1B2430",
-    padding: "64px 24px 120px",
+    padding: "48px 24px 120px",
     display: "flex",
     justifyContent: "center",
   },
   container: { width: "100%", maxWidth: 1180 },
-  header: { marginBottom: 40 },
+  header: { marginBottom: 24 },
+  eyebrow: {
+    fontFamily: FONTFAMILY,
+    fontSize: 12,
+    letterSpacing: "0.14em",
+    textTransform: "uppercase",
+    color: "#6B7280",
+    marginBottom: 8,
+  },
   title: {
     fontFamily: FONTFAMILY,
     fontSize: 32,
@@ -24,24 +31,86 @@ const styles = {
     margin: 0,
     color: "#1B2430",
   },
-  list: { display: "flex", flexDirection: "column", gap: 14 },
-  card: {
-    background: "#FFFFFF",
-    border: "1px solid #D3D8E2",
-    borderRadius: 3,
-    boxShadow: "0 1px 2px rgba(27,36,48,0.04)",
-    position: "relative",
-    transition: "border-color 120ms ease, box-shadow 120ms ease",
-  },
-  cardInner: { padding: "18px 22px 18px 22px" },
-  cardRow: {
+
+  // ---- Breadcrumbs ----
+  breadcrumbBar: {
     display: "flex",
-    alignItems: "flex-start",
-    gap: 14,
+    flexWrap: "wrap",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 20,
+    fontSize: 13,
+  },
+  breadcrumbItem: {
+    background: "none",
+    border: "none",
+    padding: "3px 4px",
+    color: "#7B8492",
+    cursor: "pointer",
+    fontFamily: FONTFAMILY,
+    fontSize: 13,
+    borderRadius: 3,
+  },
+  breadcrumbItemActive: {
+    color: "#1B2430",
+    fontWeight: 600,
+    cursor: "default",
+  },
+  breadcrumbSep: { color: "#C2C8D2", fontSize: 12 },
+  parentCard: {
+    background: "#E7ECF4",
+    border: "1px solid #C9D2E0",
+    borderRadius: 4,
+    padding: "16px 20px",
+    marginBottom: 14,
     cursor: "pointer",
   },
-  tab: {
-    fontFamily: FONTFAMILY,
+  parentCardLabel: {
+    fontSize: 11,
+    letterSpacing: "0.08em",
+    textTransform: "uppercase",
+    color: "#6B7280",
+    marginBottom: 6,
+    fontWeight: 600,
+  },
+  parentCardTitle: {
+    fontSize: 17,
+    fontWeight: 600,
+    color: "#1B2430",
+    marginBottom: 6,
+  },
+  parentCardBody: {
+    fontSize: 14,
+    lineHeight: 1.6,
+    color: "#5B6472",
+    whiteSpace: "pre-wrap",
+  },
+
+  // ---- Top pane (sibling context) ----
+  topPaneWrap: { marginBottom: 18 },
+  topPaneList: { display: "flex", flexDirection: "column", gap: 6 },
+
+  // ---- Rows (used in top pane + children list) ----
+  row: {
+    display: "flex",
+    alignItems: "center",
+    gap: 10,
+    padding: "9px 12px",
+    borderRadius: 3,
+    border: "1px solid transparent",
+    cursor: "pointer",
+    background: "#FFFFFF",
+    transition: "border-color 120ms ease, background 120ms ease",
+  },
+  rowMuted: {
+    background: "transparent",
+    boxShadow: "none",
+  },
+  rowActive: {
+    borderColor: "#B8912F",
+    background: "#FBF6E9",
+  },
+  rowTab: {
     fontSize: 11,
     color: "#B8912F",
     border: "1px solid #E4D6A7",
@@ -49,48 +118,128 @@ const styles = {
     borderRadius: 2,
     padding: "2px 6px",
     flexShrink: 0,
-    marginTop: 2,
-    letterSpacing: "0.03em",
+  },
+  rowTitle: {
+    fontSize: 14,
+    fontWeight: 500,
+    color: "#1B2430",
+    flex: 1,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
     whiteSpace: "nowrap",
   },
-  cardTitle: {
+  rowControls: { display: "flex", alignItems: "center", flexShrink: 0 },
+  iconBtn: {
+    marginLeft: 2,
+    padding: "3px 7px",
+    background: "transparent",
+    border: "1px solid transparent",
+    borderRadius: 3,
+    color: "#9AA3B2",
+    fontSize: 12,
+    cursor: "pointer",
+  },
+  iconBtnDanger: { color: "#C98E82" },
+
+  // ---- Bottom pane (active block "page") ----
+  bottomPane: {
+    background: "#FFFFFF",
+    border: "1px solid #D3D8E2",
+    borderRadius: 4,
+    padding: "26px 28px 24px",
+  },
+  activeControlsRow: {
+    display: "flex",
+    justifyContent: "flex-end",
+    gap: 4,
+    marginBottom: 10,
+  },
+  activeTitleInput: {
+    width: "100%",
+    boxSizing: "border-box",
+    border: "none",
+    outline: "none",
     fontFamily: FONTFAMILY,
     fontSize: 24,
-    fontWeight: 400,
+    fontWeight: 600,
     color: "#1B2430",
-    margin: 0,
-    lineHeight: 1.4,
+    padding: "4px 0",
+    marginBottom: 6,
+    background: "transparent",
   },
-  chevron: {
-    marginLeft: "auto",
-    color: "#9AA3B2",
-    fontSize: 13,
-    transition: "transform 160ms ease",
-    flexShrink: 0,
-    marginTop: 4,
-  },
-  body: {
-    marginTop: 12,
-    paddingTop: 12,
-    borderTop: "1px solid #EEF0F4",
+  activeBodyTextarea: {
+    width: "100%",
+    boxSizing: "border-box",
+    border: "none",
+    outline: "none",
+    resize: "none",
+    overflow: "hidden",
+    fontFamily: FONTFAMILY,
     fontSize: 15,
     lineHeight: 1.65,
     color: "#3A4250",
-    whiteSpace: "pre-wrap",
+    padding: "4px 0",
+    minHeight: 60,
+    background: "transparent",
   },
-  childrenWrap: {
-    marginTop: 16,
-    marginLeft: 8,
-    paddingLeft: INDENT - 8,
-    borderLeft: "2px solid #E7EAF0",
+  saveBar: {
     display: "flex",
-    flexDirection: "column",
-    gap: 12,
+    justifyContent: "flex-end",
+    gap: 8,
+    marginTop: 6,
+    marginBottom: 8,
   },
+  btnGhost: {
+    padding: "7px 14px",
+    fontSize: 13,
+    fontWeight: 500,
+    background: "transparent",
+    border: "1px solid transparent",
+    color: "#5B6472",
+    borderRadius: 3,
+    cursor: "pointer",
+  },
+  btnPrimary: {
+    padding: "7px 16px",
+    fontSize: 13,
+    fontWeight: 600,
+    background: "#1B2430",
+    border: "1px solid #1B2430",
+    color: "#FFFFFF",
+    borderRadius: 3,
+    cursor: "pointer",
+  },
+  btnDanger: {
+    padding: "9px 18px",
+    fontSize: 14,
+    fontWeight: 600,
+    background: "#B0483C",
+    border: "1px solid #B0483C",
+    color: "#FFFFFF",
+    borderRadius: 3,
+    cursor: "pointer",
+  },
+  divider: { borderTop: "1px solid #EEF0F4", margin: "18px 0 16px" },
+  sectionLabel: {
+    fontSize: 11,
+    letterSpacing: "0.08em",
+    textTransform: "uppercase",
+    color: "#9AA3B2",
+    marginBottom: 10,
+    fontWeight: 600,
+  },
+  childrenList: { display: "flex", flexDirection: "column", gap: 6 },
+  emptyChildren: {
+    fontSize: 13,
+    color: "#AEB4BF",
+    fontStyle: "italic",
+    padding: "4px 0 4px",
+  },
+
   addButtonWrap: { marginTop: 14 },
   addButton: {
     width: "100%",
-    padding: "16px 22px",
+    padding: "14px 20px",
     background: "transparent",
     border: "1.5px dashed #B7BFCC",
     borderRadius: 3,
@@ -103,84 +252,10 @@ const styles = {
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    transition:
-      "border-color 120ms ease, color 120ms ease, background 120ms ease",
   },
-  nestedAddButton: {
-    padding: "9px 14px",
-    background: "transparent",
-    border: "1.5px dashed #C7CDD8",
-    borderRadius: 3,
-    color: "#7B8492",
-    fontFamily: FONTFAMILY,
-    fontSize: 13,
-    fontWeight: 500,
-    cursor: "pointer",
-    display: "inline-flex",
-    alignItems: "center",
-    gap: 6,
-    alignSelf: "flex-start",
-    transition:
-      "border-color 120ms ease, color 120ms ease, background 120ms ease",
-  },
-  editButton: {
-    marginLeft: 8,
-    padding: "3px 9px",
-    background: "transparent",
-    border: "1px solid transparent",
-    borderRadius: 3,
-    color: "#7B8492",
-    fontFamily: "'Inter', sans-serif",
-    fontSize: 12,
-    fontWeight: 500,
-    cursor: "pointer",
-    flexShrink: 0,
-  },
-  moveButton: {
-    marginLeft: 4,
-    padding: "3px 7px",
-    background: "transparent",
-    border: "1px solid transparent",
-    borderRadius: 3,
-    color: "#7B8492",
-    fontFamily: "'Inter', sans-serif",
-    fontSize: 12,
-    cursor: "pointer",
-    flexShrink: 0,
-  },
-  deleteButton: {
-    marginLeft: 4,
-    padding: "3px 7px",
-    background: "transparent",
-    border: "1px solid transparent",
-    borderRadius: 3,
-    color: "#B0483C",
-    fontFamily: "'Inter', sans-serif",
-    fontSize: 12,
-    cursor: "pointer",
-    flexShrink: 0,
-  },
-  confirmBody: {
-    fontSize: 14,
-    lineHeight: 1.6,
-    color: "#3A4250",
-    marginBottom: 24,
-  },
-  btnDanger: {
-    padding: "9px 18px",
-    fontSize: 14,
-    fontWeight: 600,
-    background: "#B0483C",
-    border: "1px solid #B0483C",
-    color: "#FFFFFF",
-    borderRadius: 3,
-    cursor: "pointer",
-  },
-  plusGlyph: {
-    fontFamily: FONTFAMILY,
-    fontSize: 16,
-    lineHeight: 1,
-  },
+  plusGlyph: { fontSize: 16, lineHeight: 1 },
+
+  // ---- Dialogs (add / delete) ----
   overlay: {
     position: "fixed",
     inset: 0,
@@ -200,7 +275,6 @@ const styles = {
     boxShadow: "0 20px 60px rgba(27,36,48,0.25)",
   },
   dialogEyebrow: {
-    fontFamily: FONTFAMILY,
     fontSize: 11,
     letterSpacing: "0.12em",
     textTransform: "uppercase",
@@ -208,7 +282,6 @@ const styles = {
     marginBottom: 6,
   },
   dialogTitle: {
-    fontFamily: FONTFAMILY,
     fontSize: 22,
     fontWeight: 600,
     margin: "0 0 20px 0",
@@ -220,7 +293,6 @@ const styles = {
     fontWeight: 600,
     color: "#5B6472",
     marginBottom: 6,
-    letterSpacing: "0.02em",
   },
   input: {
     width: "100%",
@@ -250,55 +322,34 @@ const styles = {
     lineHeight: 1.5,
   },
   dialogActions: { display: "flex", justifyContent: "flex-end", gap: 10 },
-  btnGhost: {
-    padding: "9px 16px",
+  confirmBody: {
     fontSize: 14,
-    fontWeight: 500,
-    background: "transparent",
-    border: "1px solid transparent",
-    color: "#5B6472",
-    borderRadius: 3,
-    cursor: "pointer",
+    lineHeight: 1.6,
+    color: "#3A4250",
+    marginBottom: 24,
   },
-  btnPrimary: {
-    padding: "9px 18px",
-    fontSize: 14,
-    fontWeight: 600,
-    background: "#1B2430",
-    border: "1px solid #1B2430",
-    color: "#FFFFFF",
-    borderRadius: 3,
-    cursor: "pointer",
-  },
+
   empty: {
     padding: "40px 0 8px",
     color: "#8891A0",
     fontSize: 14,
     fontStyle: "italic",
-    fontFamily: FONTFAMILY,
   },
-  statusLine: {
-    fontFamily: FONTFAMILY,
-    fontSize: 12,
-    color: "#B0483C",
-    marginBottom: 16,
-  },
+  statusLine: { fontSize: 12, color: "#B0483C", marginBottom: 16 },
 };
 
-// Local-only helper: insert a freshly-created node (returned by the API)
-// into the in-memory tree without waiting for a full refetch.
-function addNodeToTree(nodes, parentId, newNode) {
-  if (parentId === null) return [...nodes, newNode];
-  return nodes.map((n) => {
-    if (n.id === parentId) {
-      return { ...n, children: [...(n.children || []), newNode] };
+// One-time keyframes for the pane slide/fade transition, injected globally.
+const AnimationStyles = () => (
+  <style>{`
+    @keyframes paneEnter {
+      from { opacity: 0; transform: translateY(10px); }
+      to   { opacity: 1; transform: translateY(0); }
     }
-    if (n.children && n.children.length) {
-      return { ...n, children: addNodeToTree(n.children, parentId, newNode) };
-    }
-    return n;
-  });
-}
+    .pane-animate { animation: paneEnter 220ms ease; }
+  `}</style>
+);
+
+// ---- Tree helpers ----
 
 function findNode(nodes, id) {
   for (const n of nodes) {
@@ -321,18 +372,11 @@ function updateNodeInTree(nodes, id, updates) {
   });
 }
 
-function AddDialog({
-  heading = "Add an entry",
-  contextLabel,
-  initialTitle = "",
-  initialBody = "",
-  submitLabel = "Save",
-  saving,
-  onSave,
-  onCancel,
-}) {
-  const [title, setTitle] = useState(initialTitle);
-  const [body, setBody] = useState(initialBody);
+// ---- Add dialog ----
+
+function AddDialog({ contextLabel, saving, onSave, onCancel }) {
+  const [title, setTitle] = useState("");
+  const [body, setBody] = useState("");
   const titleRef = useRef(null);
 
   useEffect(() => {
@@ -359,7 +403,7 @@ function AddDialog({
         onKeyDown={handleKeyDown}
       >
         <div style={styles.dialogEyebrow}>{contextLabel}</div>
-        <h2 style={styles.dialogTitle}>{heading}</h2>
+        <h2 style={styles.dialogTitle}>Add an entry</h2>
 
         <label style={styles.fieldLabel} htmlFor="block-title">
           Title
@@ -397,13 +441,15 @@ function AddDialog({
             onClick={handleSave}
             disabled={!canSave}
           >
-            {saving ? "Saving…" : submitLabel}
+            {saving ? "Saving…" : "Save"}
           </button>
         </div>
       </div>
     </div>
   );
 }
+
+// ---- Delete confirmation dialog ----
 
 function ConfirmDeleteDialog({ block, deleting, onConfirm, onCancel }) {
   const hasChildren = block.children && block.children.length > 0;
@@ -438,166 +484,60 @@ function ConfirmDeleteDialog({ block, deleting, onConfirm, onCancel }) {
   );
 }
 
-function BlockNode({
+// ---- A single row: used in the top (sibling) pane and in the children list ----
+
+function BlockRow({
   block,
-  label,
-  expandedIds,
-  onToggle,
-  onRequestAdd,
-  onRequestEdit,
+  index,
+  muted,
+  active,
+  onSelect,
   onMove,
   onRequestDelete,
 }) {
   const [hovered, setHovered] = useState(false);
-  const expanded = expandedIds.has(block.id);
-  const children = block.children || [];
-
   return (
     <div
       style={{
-        ...styles.card,
-        borderColor: hovered ? "#9AA3B2" : "#D3D8E2",
-        boxShadow: hovered
-          ? "0 2px 8px rgba(27,36,48,0.08)"
-          : "0 1px 2px rgba(27,36,48,0.04)",
+        ...styles.row,
+        ...(muted ? styles.rowMuted : {}),
+        ...(active ? styles.rowActive : {}),
+        borderColor: active ? "#B8912F" : hovered ? "#D3D8E2" : "transparent",
       }}
+      onClick={() => onSelect(block.id)}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
+      role="button"
+      tabIndex={0}
     >
-      <div style={styles.cardInner}>
-        <div
-          style={styles.cardRow}
-          onClick={() => onToggle(block.id)}
-          role="button"
-          tabIndex={0}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === " ") {
-              e.preventDefault();
-              onToggle(block.id);
-            }
+      <span style={styles.rowTab}>{String(index + 1).padStart(3, "0")}</span>
+      <span style={styles.rowTitle}>{block.title}</span>
+      <div style={styles.rowControls}>
+        {["up", "down", "outdent", "indent"].map((action) => (
+          <button
+            key={action}
+            style={styles.iconBtn}
+            title={action}
+            onClick={(e) => {
+              e.stopPropagation();
+              onMove(block.id, action);
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = "#1B2430")}
+            onMouseLeave={(e) => (e.currentTarget.style.color = "#9AA3B2")}
+          >
+            {{ up: "▲", down: "▼", outdent: "⇤", indent: "⇥" }[action]}
+          </button>
+        ))}
+        <button
+          style={{ ...styles.iconBtn, ...styles.iconBtnDanger }}
+          title="Delete"
+          onClick={(e) => {
+            e.stopPropagation();
+            onRequestDelete(block);
           }}
-          aria-expanded={expanded}
         >
-          <span style={styles.tab}>{label}</span>
-          <h3 style={styles.cardTitle}>{block.title}</h3>
-          <button
-            style={styles.editButton}
-            onClick={(e) => {
-              e.stopPropagation();
-              onRequestEdit(block);
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.color = "#1B2430";
-              e.currentTarget.style.borderColor = "#D3D8E2";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.color = "#7B8492";
-              e.currentTarget.style.borderColor = "transparent";
-            }}
-          >
-            Edit
-          </button>
-          {["up", "down", "outdent", "indent"].map((action) => (
-            <button
-              key={action}
-              style={styles.moveButton}
-              onClick={(e) => {
-                e.stopPropagation();
-                onMove(block.id, action);
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.color = "#1B2430")}
-              onMouseLeave={(e) => (e.currentTarget.style.color = "#7B8492")}
-              title={action}
-            >
-              {{ up: "▲", down: "▼", outdent: "⇤", indent: "⇥" }[action]}
-            </button>
-          ))}
-          <button
-            style={styles.deleteButton}
-            onClick={(e) => {
-              e.stopPropagation();
-              onRequestDelete(block);
-            }}
-            onMouseEnter={(e) =>
-              (e.currentTarget.style.borderColor = "#F0D5D0")
-            }
-            onMouseLeave={(e) =>
-              (e.currentTarget.style.borderColor = "transparent")
-            }
-            title="Delete"
-          >
-            ✕
-          </button>
-          <span
-            style={{
-              ...styles.chevron,
-              transform: expanded ? "rotate(90deg)" : "rotate(0deg)",
-            }}
-          >
-            ▸
-          </span>
-        </div>
-
-        {expanded && (
-          <>
-            <div style={styles.body}>
-              {block.body || (
-                <span style={{ color: "#B0B6C0" }}>No body written.</span>
-              )}
-            </div>
-
-            {children.length > 0 && (
-              <div style={styles.childrenWrap}>
-                {children.map((child, i) => (
-                  <BlockNode
-                    key={child.id}
-                    block={child}
-                    label={`${label}.${String(i + 1).padStart(2, "0")}`}
-                    expandedIds={expandedIds}
-                    onToggle={onToggle}
-                    onRequestAdd={onRequestAdd}
-                    onRequestEdit={onRequestEdit}
-                    onMove={onMove}
-                    onRequestDelete={onRequestDelete}
-                  />
-                ))}
-              </div>
-            )}
-
-            <div
-              style={{
-                ...styles.childrenWrap,
-                marginTop: children.length > 0 ? 0 : 16,
-                paddingTop: children.length > 0 ? 4 : 0,
-                borderLeft:
-                  children.length > 0
-                    ? styles.childrenWrap.borderLeft
-                    : "2px solid #E7EAF0",
-              }}
-            >
-              <button
-                style={styles.nestedAddButton}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onRequestAdd(block.id);
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.borderColor = "#B8912F";
-                  e.currentTarget.style.color = "#B8912F";
-                  e.currentTarget.style.background = "#FBF6E9";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.borderColor = "#C7CDD8";
-                  e.currentTarget.style.color = "#7B8492";
-                  e.currentTarget.style.background = "transparent";
-                }}
-              >
-                <span style={styles.plusGlyph}>+</span>
-                Add nested block
-              </button>
-            </div>
-          </>
-        )}
+          ✕
+        </button>
       </div>
     </div>
   );
@@ -605,14 +545,29 @@ function BlockNode({
 
 export default function BlockPlatform() {
   const [tree, setTree] = useState([]);
-  const [expandedIds, setExpandedIds] = useState(() => new Set());
-  const [dialogParentId, setDialogParentId] = useState(undefined); // undefined = closed, null = root
+  const [path, setPath] = useState([]); // array of block ids, root -> ... -> active
+  const [dialogParentId, setDialogParentId] = useState(undefined); // undefined=closed, null=root
+  const [deletingBlock, setDeletingBlock] = useState(null);
+  const [deleting, setDeleting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
-  const [editingBlock, setEditingBlock] = useState(null);
-  const [deletingBlock, setDeletingBlock] = useState(null);
-  const [deleting, setDeleting] = useState(false);
+
+  const [titleDraft, setTitleDraft] = useState("");
+  const [bodyDraft, setBodyDraft] = useState("");
+  const bodyRef = useRef(null);
+
+  const activeId = path.length > 0 ? path[path.length - 1] : null;
+  const activeBlock = activeId !== null ? findNode(tree, activeId) : null;
+  const parentId = path.length >= 2 ? path[path.length - 2] : null;
+  const parentBlock = parentId !== null ? findNode(tree, parentId) : null;
+
+  const topPaneList =
+    path.length === 0
+      ? []
+      : path.length === 1
+        ? tree
+        : findNode(tree, path[path.length - 2])?.children || [];
 
   const loadTree = () => {
     setLoading(true);
@@ -635,7 +590,45 @@ export default function BlockPlatform() {
     loadTree();
   }, []);
 
-  const handleSave = async ({ title, body }) => {
+  // Keep the edit drafts in sync whenever the active block changes
+  // (drilling in/out, switching sideways, or after a save/refetch).
+  useEffect(() => {
+    if (activeBlock) {
+      setTitleDraft(activeBlock.title);
+      setBodyDraft(activeBlock.body || "");
+    }
+  }, [
+    activeBlock && activeBlock.id,
+    activeBlock && activeBlock.title,
+    activeBlock && activeBlock.body,
+  ]);
+
+  useEffect(() => {
+    if (bodyRef.current) {
+      bodyRef.current.style.height = "auto";
+      bodyRef.current.style.height = `${bodyRef.current.scrollHeight}px`;
+    }
+  }, [bodyDraft, activeId]);
+
+  const dirty =
+    activeBlock &&
+    (titleDraft !== activeBlock.title ||
+      bodyDraft !== (activeBlock.body || ""));
+
+  // ---- Navigation ----
+  const drillInto = (id) => setPath((prev) => [...prev, id]);
+  const switchSideways = (id) => setPath((prev) => [...prev.slice(0, -1), id]);
+  const goUpOne = () => setPath((prev) => prev.slice(0, -1));
+  const goToRoot = () => setPath([]);
+  const jumpToCrumb = (index) => setPath((prev) => prev.slice(0, index + 1));
+
+  const handleTopPaneSelect = (id) => {
+    if (id === activeId) goUpOne();
+    else switchSideways(id);
+  };
+
+  // ---- Create ----
+  const handleSaveNew = async ({ title, body }) => {
     setSaving(true);
     try {
       const res = await fetch(`${API_BASE}/api/blocks`, {
@@ -644,13 +637,8 @@ export default function BlockPlatform() {
         body: JSON.stringify({ title, body, parentId: dialogParentId }),
       });
       if (!res.ok) throw new Error(`Server responded ${res.status}`);
-      const newNode = await res.json();
-
-      setTree((prev) => addNodeToTree(prev, dialogParentId, newNode));
-      if (dialogParentId !== null) {
-        setExpandedIds((prev) => new Set(prev).add(dialogParentId));
-      }
       setDialogParentId(undefined);
+      loadTree();
     } catch (err) {
       setError(`Couldn't save that block: ${err.message}`);
     } finally {
@@ -658,24 +646,27 @@ export default function BlockPlatform() {
     }
   };
 
-  const handleEditSave = async ({ title, body }) => {
+  // ---- Edit (active block) ----
+  const handleSaveActive = async () => {
+    if (!activeBlock || !titleDraft.trim()) return;
     setSaving(true);
     try {
-      const res = await fetch(`${API_BASE}/api/blocks/${editingBlock.id}`, {
+      const res = await fetch(`${API_BASE}/api/blocks/${activeBlock.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title, body }),
+        body: JSON.stringify({
+          title: titleDraft.trim(),
+          body: bodyDraft.trim(),
+        }),
       });
       if (!res.ok) throw new Error(`Server responded ${res.status}`);
       const updated = await res.json();
-
       setTree((prev) =>
         updateNodeInTree(prev, updated.id, {
           title: updated.title,
           body: updated.body,
         }),
       );
-      setEditingBlock(null);
     } catch (err) {
       setError(`Couldn't save changes: ${err.message}`);
     } finally {
@@ -683,14 +674,21 @@ export default function BlockPlatform() {
     }
   };
 
+  const handleCancelActiveEdit = () => {
+    if (activeBlock) {
+      setTitleDraft(activeBlock.title);
+      setBodyDraft(activeBlock.body || "");
+    }
+  };
+
+  // ---- Move ----
   const handleMove = async (id, action) => {
     try {
-      const res = await fetch(
-        `${API_BASE}/api/blocks/${id}/${action === "up" ? "move-up" : action === "down" ? "move-down" : action}`,
-        {
-          method: "POST",
-        },
-      );
+      const endpoint =
+        action === "up" ? "move-up" : action === "down" ? "move-down" : action;
+      const res = await fetch(`${API_BASE}/api/blocks/${id}/${endpoint}`, {
+        method: "POST",
+      });
       if (!res.ok) throw new Error(`Server responded ${res.status}`);
       loadTree();
     } catch (err) {
@@ -698,6 +696,7 @@ export default function BlockPlatform() {
     }
   };
 
+  // ---- Delete ----
   const handleDeleteConfirmed = async () => {
     setDeleting(true);
     try {
@@ -705,6 +704,7 @@ export default function BlockPlatform() {
         method: "DELETE",
       });
       if (!res.ok) throw new Error(`Server responded ${res.status}`);
+      if (deletingBlock.id === activeId) goUpOne();
       setDeletingBlock(null);
       loadTree();
     } catch (err) {
@@ -714,97 +714,225 @@ export default function BlockPlatform() {
     }
   };
 
-  const toggleExpanded = (id) => {
-    setExpandedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
-
-  const dialogOpen = dialogParentId !== undefined;
-  const dialogParentNode =
-    dialogParentId !== undefined && dialogParentId !== null
-      ? findNode(tree, dialogParentId)
-      : null;
+  const crumbs = [
+    { label: "Root", isRoot: true },
+    ...path.map((id) => ({ label: findNode(tree, id)?.title || "…" })),
+  ];
 
   return (
     <div style={styles.page}>
+      <AnimationStyles />
       <div style={styles.container}>
         <div style={styles.header}>
+          <div style={styles.eyebrow}>Block Platform</div>
           <h1 style={styles.title}>Entries</h1>
         </div>
 
         {error && <div style={styles.statusLine}>{error}</div>}
 
-        {!loading && tree.length === 0 && !error && (
-          <div style={styles.empty}>
-            Nothing here yet. Add the first block below.
+        {path.length > 0 && (
+          <div style={styles.breadcrumbBar}>
+            {crumbs.map((crumb, i) => (
+              <React.Fragment key={i}>
+                {i > 0 && <span style={styles.breadcrumbSep}>›</span>}
+                <button
+                  style={{
+                    ...styles.breadcrumbItem,
+                    ...(i === crumbs.length - 1
+                      ? styles.breadcrumbItemActive
+                      : {}),
+                  }}
+                  onClick={() =>
+                    crumb.isRoot ? goToRoot() : jumpToCrumb(i - 1)
+                  }
+                  disabled={i === crumbs.length - 1}
+                >
+                  {crumb.label}
+                </button>
+              </React.Fragment>
+            ))}
           </div>
         )}
 
-        <div style={styles.list}>
-          {tree.map((block, i) => (
-            <BlockNode
-              key={block.id}
-              block={block}
-              label={String(i + 1).padStart(3, "0")}
-              expandedIds={expandedIds}
-              onToggle={toggleExpanded}
-              onRequestAdd={(parentId) => setDialogParentId(parentId)}
-              onRequestEdit={(b) => setEditingBlock(b)}
-              onMove={handleMove}
-              onRequestDelete={(b) => setDeletingBlock(b)}
-            />
-          ))}
-        </div>
+        {/* ---- ROOT VIEW: nothing open yet ---- */}
+        {path.length === 0 && (
+          <>
+            {!loading && tree.length === 0 && !error && (
+              <div style={styles.empty}>
+                Nothing here yet. Add the first block below.
+              </div>
+            )}
+            <div key="root" className="pane-animate" style={styles.topPaneList}>
+              {tree.map((block, i) => (
+                <BlockRow
+                  key={block.id}
+                  block={block}
+                  index={i}
+                  onSelect={drillInto}
+                  onMove={handleMove}
+                  onRequestDelete={setDeletingBlock}
+                />
+              ))}
+            </div>
+            <div style={styles.addButtonWrap}>
+              <button
+                style={styles.addButton}
+                onClick={() => setDialogParentId(null)}
+              >
+                <span style={styles.plusGlyph}>+</span> Add block
+              </button>
+            </div>
+          </>
+        )}
 
-        <div style={styles.addButtonWrap}>
-          <button
-            style={styles.addButton}
-            onClick={() => setDialogParentId(null)}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.borderColor = "#B8912F";
-              e.currentTarget.style.color = "#B8912F";
-              e.currentTarget.style.background = "#FBF6E9";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.borderColor = "#B7BFCC";
-              e.currentTarget.style.color = "#5B6472";
-              e.currentTarget.style.background = "transparent";
-            }}
-          >
-            <span style={styles.plusGlyph}>+</span>
-            Add block
-          </button>
-        </div>
+        {/* ---- BLOCK LIST at current level, active block expanded in place ---- */}
+        {path.length > 0 && activeBlock && (
+          <>
+            {parentBlock && (
+              <div style={styles.parentCard} onClick={goUpOne}>
+                <div style={styles.parentCardLabel}>Container</div>
+                <div style={styles.parentCardTitle}>{parentBlock.title}</div>
+                {parentBlock.body && (
+                  <div style={styles.parentCardBody}>{parentBlock.body}</div>
+                )}
+              </div>
+            )}
+            <div
+              key={`level-${path.length === 1 ? "root" : path[path.length - 2]}-${activeId}`}
+              className="pane-animate"
+              style={styles.topPaneList}
+            >
+              {topPaneList.map((block, i) =>
+                block.id === activeId ? (
+                  <div key={block.id} style={styles.bottomPane}>
+                    <div style={styles.activeControlsRow}>
+                      {["up", "down", "outdent", "indent"].map((action) => (
+                        <button
+                          key={action}
+                          style={styles.iconBtn}
+                          title={action}
+                          onClick={() => handleMove(activeId, action)}
+                        >
+                          {
+                            { up: "▲", down: "▼", outdent: "⇤", indent: "⇥" }[
+                              action
+                            ]
+                          }
+                        </button>
+                      ))}
+                      <button
+                        style={{ ...styles.iconBtn, ...styles.iconBtnDanger }}
+                        title="Delete"
+                        onClick={() => setDeletingBlock(activeBlock)}
+                      >
+                        ✕
+                      </button>
+                    </div>
+
+                    <input
+                      style={styles.activeTitleInput}
+                      value={titleDraft}
+                      onChange={(e) => setTitleDraft(e.target.value)}
+                      placeholder="Title"
+                    />
+                    <textarea
+                      ref={bodyRef}
+                      style={styles.activeBodyTextarea}
+                      value={bodyDraft}
+                      onChange={(e) => setBodyDraft(e.target.value)}
+                      placeholder="Write the details here"
+                    />
+
+                    {dirty && (
+                      <div style={styles.saveBar}>
+                        <button
+                          style={styles.btnGhost}
+                          onClick={handleCancelActiveEdit}
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          style={styles.btnPrimary}
+                          onClick={handleSaveActive}
+                          disabled={saving}
+                        >
+                          {saving ? "Saving…" : "Save"}
+                        </button>
+                      </div>
+                    )}
+
+                    <div style={styles.divider} />
+
+                    <div style={styles.sectionLabel}>Nested blocks</div>
+                    <div style={styles.childrenList}>
+                      {(activeBlock.children || []).length === 0 && (
+                        <div style={styles.emptyChildren}>
+                          No nested blocks yet.
+                        </div>
+                      )}
+                      {(activeBlock.children || []).map((child, ci) => (
+                        <BlockRow
+                          key={child.id}
+                          block={child}
+                          index={ci}
+                          onSelect={drillInto}
+                          onMove={handleMove}
+                          onRequestDelete={setDeletingBlock}
+                        />
+                      ))}
+                    </div>
+
+                    <div style={styles.addButtonWrap}>
+                      <button
+                        style={styles.addButton}
+                        onClick={() => setDialogParentId(activeId)}
+                      >
+                        <span style={styles.plusGlyph}>+</span> Add nested block
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <BlockRow
+                    key={block.id}
+                    block={block}
+                    index={i}
+                    muted
+                    onSelect={handleTopPaneSelect}
+                    onMove={handleMove}
+                    onRequestDelete={setDeletingBlock}
+                  />
+                ),
+              )}
+              <div style={styles.addButtonWrap}>
+                <button
+                  style={styles.addButton}
+                  onClick={() =>
+                    setDialogParentId(
+                      path.length === 1 ? null : path[path.length - 2],
+                    )
+                  }
+                >
+                  <span style={styles.plusGlyph}>+</span> Add block
+                </button>
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
-      {dialogOpen && (
+      {dialogParentId !== undefined && (
         <AddDialog
           contextLabel={
-            dialogParentNode
-              ? `Nested under: ${dialogParentNode.title}`
-              : "Top level"
+            dialogParentId === null
+              ? "Top level"
+              : `Nested under: ${activeBlock?.title || ""}`
           }
           saving={saving}
-          onSave={handleSave}
+          onSave={handleSaveNew}
           onCancel={() => setDialogParentId(undefined)}
         />
       )}
-      {editingBlock && (
-        <AddDialog
-          heading="Edit entry"
-          contextLabel={`Editing: ${editingBlock.title}`}
-          initialTitle={editingBlock.title}
-          initialBody={editingBlock.body}
-          submitLabel="Save changes"
-          saving={saving}
-          onSave={handleEditSave}
-          onCancel={() => setEditingBlock(null)}
-        />
-      )}
+
       {deletingBlock && (
         <ConfirmDeleteDialog
           block={deletingBlock}
