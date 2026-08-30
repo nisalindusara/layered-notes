@@ -41,7 +41,7 @@ function buildTree(rows) {
 app.get("/api/blocks", async (req, res) => {
   try {
     const { rows } = await pool.query(
-      "SELECT id, parent_id, title, body FROM blocks ORDER BY id ASC",
+      "SELECT id, parent_id, title, body FROM blocks ORDER BY sort_order ASC, id ASC",
     );
     res.json(buildTree(rows));
   } catch (err) {
@@ -59,8 +59,10 @@ app.post("/api/blocks", async (req, res) => {
 
   try {
     const { rows } = await pool.query(
-      `INSERT INTO blocks (parent_id, title, body)
-       VALUES ($1, $2, $3)
+      `INSERT INTO blocks (parent_id, title, body, sort_order)
+       VALUES ($1, $2, $3, (
+          SELECT COALESCE(MAX(sort_order), -1) + 1 FROM blocks WHERE parent_id IS NOT DISTINCT FROM $1
+        ))
        RETURNING id, parent_id, title, body`,
       [parentId ?? null, title.trim(), body ? body.trim() : ""],
     );
