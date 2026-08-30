@@ -136,6 +136,18 @@ const styles = {
     cursor: "pointer",
     flexShrink: 0,
   },
+  moveButton: {
+    marginLeft: 4,
+    padding: "3px 7px",
+    background: "transparent",
+    border: "1px solid transparent",
+    borderRadius: 3,
+    color: "#7B8492",
+    fontFamily: "'Inter', sans-serif",
+    fontSize: 12,
+    cursor: "pointer",
+    flexShrink: 0,
+  },
   plusGlyph: {
     fontFamily: FONTFAMILY,
     fontSize: 16,
@@ -372,6 +384,7 @@ function BlockNode({
   onToggle,
   onRequestAdd,
   onRequestEdit,
+  onMove,
 }) {
   const [hovered, setHovered] = useState(false);
   const expanded = expandedIds.has(block.id);
@@ -422,6 +435,21 @@ function BlockNode({
           >
             Edit
           </button>
+          {["up", "down", "outdent", "indent"].map((action) => (
+            <button
+              key={action}
+              style={styles.moveButton}
+              onClick={(e) => {
+                e.stopPropagation();
+                onMove(block.id, action);
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.color = "#1B2430")}
+              onMouseLeave={(e) => (e.currentTarget.style.color = "#7B8492")}
+              title={action}
+            >
+              {{ up: "▲", down: "▼", outdent: "⇤", indent: "⇥" }[action]}
+            </button>
+          ))}
           <span
             style={{
               ...styles.chevron,
@@ -451,6 +479,7 @@ function BlockNode({
                     onToggle={onToggle}
                     onRequestAdd={onRequestAdd}
                     onRequestEdit={onRequestEdit}
+                    onMove={onMove}
                   />
                 ))}
               </div>
@@ -573,6 +602,21 @@ export default function BlockPlatform() {
     }
   };
 
+  const handleMove = async (id, action) => {
+    try {
+      const res = await fetch(
+        `${API_BASE}/api/blocks/${id}/${action === "up" ? "move-up" : action === "down" ? "move-down" : action}`,
+        {
+          method: "POST",
+        },
+      );
+      if (!res.ok) throw new Error(`Server responded ${res.status}`);
+      loadTree();
+    } catch (err) {
+      setError(`Couldn't move that block: ${err.message}`);
+    }
+  };
+
   const toggleExpanded = (id) => {
     setExpandedIds((prev) => {
       const next = new Set(prev);
@@ -613,6 +657,7 @@ export default function BlockPlatform() {
               onToggle={toggleExpanded}
               onRequestAdd={(parentId) => setDialogParentId(parentId)}
               onRequestEdit={(b) => setEditingBlock(b)}
+              onMove={handleMove}
             />
           ))}
         </div>
