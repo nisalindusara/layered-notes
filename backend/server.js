@@ -281,6 +281,23 @@ app.post("/api/blocks/:id/indent", async (req, res) => {
   }
 });
 
+app.delete("/api/blocks/:id", async (req, res) => {
+  const id = Number(req.params.id);
+  try {
+    const { rows } = await pool.query(
+      "DELETE FROM blocks WHERE id = $1 RETURNING id",
+      [id],
+    );
+    if (rows.length === 0) {
+      return res.status(404).json({ error: "Block not found" });
+    }
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to delete block" });
+  }
+});
+
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
   console.log(`Block platform API listening on port ${PORT}`);

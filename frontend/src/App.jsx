@@ -148,6 +148,34 @@ const styles = {
     cursor: "pointer",
     flexShrink: 0,
   },
+  deleteButton: {
+    marginLeft: 4,
+    padding: "3px 7px",
+    background: "transparent",
+    border: "1px solid transparent",
+    borderRadius: 3,
+    color: "#B0483C",
+    fontFamily: "'Inter', sans-serif",
+    fontSize: 12,
+    cursor: "pointer",
+    flexShrink: 0,
+  },
+  confirmBody: {
+    fontSize: 14,
+    lineHeight: 1.6,
+    color: "#3A4250",
+    marginBottom: 24,
+  },
+  btnDanger: {
+    padding: "9px 18px",
+    fontSize: 14,
+    fontWeight: 600,
+    background: "#B0483C",
+    border: "1px solid #B0483C",
+    color: "#FFFFFF",
+    borderRadius: 3,
+    cursor: "pointer",
+  },
   plusGlyph: {
     fontFamily: FONTFAMILY,
     fontSize: 16,
@@ -377,6 +405,39 @@ function AddDialog({
   );
 }
 
+function ConfirmDeleteDialog({ block, deleting, onConfirm, onCancel }) {
+  const hasChildren = block.children && block.children.length > 0;
+  return (
+    <div style={styles.overlay} onMouseDown={onCancel}>
+      <div style={styles.dialog} onMouseDown={(e) => e.stopPropagation()}>
+        <div style={styles.dialogEyebrow}>Delete entry</div>
+        <h2 style={styles.dialogTitle}>Delete "{block.title}"?</h2>
+        <div style={styles.confirmBody}>
+          {hasChildren
+            ? "This will also permanently delete all of its nested blocks. This can't be undone."
+            : "This can't be undone."}
+        </div>
+        <div style={styles.dialogActions}>
+          <button style={styles.btnGhost} onClick={onCancel}>
+            Cancel
+          </button>
+          <button
+            style={{
+              ...styles.btnDanger,
+              opacity: deleting ? 0.6 : 1,
+              cursor: deleting ? "not-allowed" : "pointer",
+            }}
+            onClick={onConfirm}
+            disabled={deleting}
+          >
+            {deleting ? "Deleting…" : "Delete"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function BlockNode({
   block,
   label,
@@ -385,6 +446,7 @@ function BlockNode({
   onRequestAdd,
   onRequestEdit,
   onMove,
+  onRequestDelete,
 }) {
   const [hovered, setHovered] = useState(false);
   const expanded = expandedIds.has(block.id);
@@ -450,6 +512,22 @@ function BlockNode({
               {{ up: "▲", down: "▼", outdent: "⇤", indent: "⇥" }[action]}
             </button>
           ))}
+          <button
+            style={styles.deleteButton}
+            onClick={(e) => {
+              e.stopPropagation();
+              onRequestDelete(block);
+            }}
+            onMouseEnter={(e) =>
+              (e.currentTarget.style.borderColor = "#F0D5D0")
+            }
+            onMouseLeave={(e) =>
+              (e.currentTarget.style.borderColor = "transparent")
+            }
+            title="Delete"
+          >
+            ✕
+          </button>
           <span
             style={{
               ...styles.chevron,
@@ -480,6 +558,7 @@ function BlockNode({
                     onRequestAdd={onRequestAdd}
                     onRequestEdit={onRequestEdit}
                     onMove={onMove}
+                    onRequestDelete={onRequestDelete}
                   />
                 ))}
               </div>
@@ -532,6 +611,8 @@ export default function BlockPlatform() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
   const [editingBlock, setEditingBlock] = useState(null);
+  const [deletingBlock, setDeletingBlock] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
   const loadTree = () => {
     setLoading(true);
@@ -617,6 +698,22 @@ export default function BlockPlatform() {
     }
   };
 
+  const handleDeleteConfirmed = async () => {
+    setDeleting(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/blocks/${deletingBlock.id}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) throw new Error(`Server responded ${res.status}`);
+      setDeletingBlock(null);
+      loadTree();
+    } catch (err) {
+      setError(`Couldn't delete that block: ${err.message}`);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const toggleExpanded = (id) => {
     setExpandedIds((prev) => {
       const next = new Set(prev);
@@ -658,6 +755,7 @@ export default function BlockPlatform() {
               onRequestAdd={(parentId) => setDialogParentId(parentId)}
               onRequestEdit={(b) => setEditingBlock(b)}
               onMove={handleMove}
+              onRequestDelete={(b) => setDeletingBlock(b)}
             />
           ))}
         </div>
@@ -705,6 +803,14 @@ export default function BlockPlatform() {
           saving={saving}
           onSave={handleEditSave}
           onCancel={() => setEditingBlock(null)}
+        />
+      )}
+      {deletingBlock && (
+        <ConfirmDeleteDialog
+          block={deletingBlock}
+          deleting={deleting}
+          onConfirm={handleDeleteConfirmed}
+          onCancel={() => setDeletingBlock(null)}
         />
       )}
     </div>
