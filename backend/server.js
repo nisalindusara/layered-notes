@@ -125,6 +125,162 @@ app.patch("/api/blocks/:id", async (req, res) => {
   }
 });
 
+app.post("/api/blocks/:id/move-up", async (req, res) => {
+  const id = Number(req.params.id);
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const { rows } = await client.query(
+      "SELECT parent_id FROM blocks WHERE id = $1",
+      [id],
+    );
+    if (rows.length === 0) throw { status: 404, message: "Block not found" };
+
+    const order = await getSiblingIds(client, rows[0].parent_id);
+    const idx = order.indexOf(id);
+    if (idx > 0) {
+      [order[idx - 1], order[idx]] = [order[idx], order[idx - 1]];
+      await renumberList(client, order);
+    }
+    await client.query("COMMIT");
+    res.json({ ok: true });
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error(err);
+    res
+      .status(err.status || 500)
+      .json({ error: err.message || "Failed to move block" });
+  } finally {
+    client.release();
+  }
+});
+
+app.post("/api/blocks/:id/move-down", async (req, res) => {
+  const id = Number(req.params.id);
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const { rows } = await client.query(
+      "SELECT parent_id FROM blocks WHERE id = $1",
+      [id],
+    );
+    if (rows.length === 0) throw { status: 404, message: "Block not found" };
+
+    const order = await getSiblingIds(client, rows[0].parent_id);
+    const idx = order.indexOf(id);
+    if (idx !== -1 && idx < order.length - 1) {
+      [order[idx], order[idx + 1]] = [order[idx + 1], order[idx]];
+      await renumberList(client, order);
+    }
+    await client.query("COMMIT");
+    res.json({ ok: true });
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error(err);
+    res
+      .status(err.status || 500)
+      .json({ error: err.message || "Failed to move block" });
+  } finally {
+    client.release();
+  }
+});
+
+app.post("/api/blocks/:id/outdent", async (req, res) => {
+  const id = Number(req.params.id);
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const { rows } = await client.query(
+      "SELECT id, parent_id FROM blocks WHERE id = $1",
+      [id],
+    );
+    if (rows.length === 0) throw { status: 404, message: "Block not found" };
+    const block = rows[0];
+
+    if (block.parent_id === null) {
+      await client.query("ROLLBACK");
+      return res.json({ ok: true, note: "Already at the top level" });
+    }
+
+    const { rows: parentRows } = await client.query(
+      "SELECT id, parent_id FROM blocks WHERE id = $1",
+      [block.parent_id],
+    );
+    const parent = parentRows[0];
+    const grandparentId = parent.parent_id;
+
+    const oldSiblingIds = await getSiblingIds(client, block.parent_id, id);
+    await renumberList(client, oldSiblingIds);
+
+    const newSiblingIds = await getSiblingIds(client, grandparentId, id);
+    const parentIndex = newSiblingIds.indexOf(parent.id);
+    newSiblingIds.splice(parentIndex + 1, 0, id);
+
+    await client.query("UPDATE blocks SET parent_id = $1 WHERE id = $2", [
+      grandparentId,
+      id,
+    ]);
+    await renumberList(client, newSiblingIds);
+
+    await client.query("COMMIT");
+    res.json({ ok: true });
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error(err);
+    res
+      .status(err.status || 500)
+      .json({ error: err.message || "Failed to outdent block" });
+  } finally {
+    client.release();
+  }
+});
+
+app.post("/api/blocks/:id/indent", async (req, res) => {
+  const id = Number(req.params.id);
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const { rows } = await client.query(
+      "SELECT id, parent_id FROM blocks WHERE id = $1",
+      [id],
+    );
+    if (rows.length === 0) throw { status: 404, message: "Block not found" };
+    const block = rows[0];
+
+    const fullOrder = await getSiblingIds(client, block.parent_id);
+    const myIndex = fullOrder.indexOf(id);
+
+    if (myIndex <= 0) {
+      await client.query("ROLLBACK");
+      return res.json({ ok: true, note: "No preceding sibling to nest under" });
+    }
+
+    const newParentId = fullOrder[myIndex - 1];
+    const remainingOldSiblings = fullOrder.filter((x) => x !== id);
+    await renumberList(client, remainingOldSiblings);
+
+    const newSiblingIds = await getSiblingIds(client, newParentId, id);
+    newSiblingIds.push(id);
+
+    await client.query("UPDATE blocks SET parent_id = $1 WHERE id = $2", [
+      newParentId,
+      id,
+    ]);
+    await renumberList(client, newSiblingIds);
+
+    await client.query("COMMIT");
+    res.json({ ok: true });
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error(err);
+    res
+      .status(err.status || 500)
+      .json({ error: err.message || "Failed to indent block" });
+  } finally {
+    client.release();
+  }
+});
+
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
   console.log(`Block platform API listening on port ${PORT}`);
