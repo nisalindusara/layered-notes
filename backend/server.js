@@ -38,6 +38,26 @@ function buildTree(rows) {
   return roots;
 }
 
+async function getSiblingIds(client, parentId, excludeId = null) {
+  const query = excludeId
+    ? `SELECT id FROM blocks WHERE parent_id IS NOT DISTINCT FROM $1 AND id != $2 ORDER BY sort_order ASC, id ASC`
+    : `SELECT id FROM blocks WHERE parent_id IS NOT DISTINCT FROM $1 ORDER BY sort_order ASC, id ASC`;
+  const { rows } = await client.query(
+    query,
+    excludeId ? [parentId, excludeId] : [parentId],
+  );
+  return rows.map((r) => r.id);
+}
+
+async function renumberList(client, orderedIds) {
+  for (let i = 0; i < orderedIds.length; i++) {
+    await client.query("UPDATE blocks SET sort_order = $1 WHERE id = $2", [
+      i,
+      orderedIds[i],
+    ]);
+  }
+}
+
 app.get("/api/blocks", async (req, res) => {
   try {
     const { rows } = await pool.query(
