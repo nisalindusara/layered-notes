@@ -73,10 +73,6 @@ app.get("/api/blocks", async (req, res) => {
 app.post("/api/blocks", async (req, res) => {
   const { title, body, parentId } = req.body;
 
-  if (!title || !title.trim()) {
-    return res.status(400).json({ error: "Title is required" });
-  }
-
   try {
     const { rows } = await pool.query(
       `INSERT INTO blocks (parent_id, title, body, sort_order)
@@ -84,7 +80,11 @@ app.post("/api/blocks", async (req, res) => {
           SELECT COALESCE(MAX(sort_order), -1) + 1 FROM blocks WHERE parent_id IS NOT DISTINCT FROM $1
         ))
        RETURNING id, parent_id, title, body`,
-      [parentId ?? null, title.trim(), body ? body.trim() : ""],
+      [
+        parentId ?? null,
+        title && title.trim() ? title.trim() : "Untitled",
+        body ? body.trim() : "",
+      ],
     );
     const row = rows[0];
     res.status(201).json({
@@ -113,7 +113,11 @@ app.patch("/api/blocks/:id", async (req, res) => {
        SET title = $1, body = $2
        WHERE id = $3
        RETURNING id, parent_id, title, body`,
-      [title.trim(), body ? body.trim() : "", id],
+      [
+        title && title.trim() ? title.trim() : "Untitled",
+        body ? body.trim() : "",
+        id,
+      ],
     );
     if (rows.length === 0) {
       return res.status(404).json({ error: "Block not found" });

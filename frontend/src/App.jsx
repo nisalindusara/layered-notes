@@ -95,7 +95,7 @@ const styles = {
     display: "flex",
     alignItems: "center",
     gap: 10,
-    padding: "9px 12px",
+    padding: "18px 27px",
     borderRadius: 3,
     border: "1px solid transparent",
     cursor: "pointer",
@@ -120,8 +120,8 @@ const styles = {
     flexShrink: 0,
   },
   rowTitle: {
-    fontSize: 14,
-    fontWeight: 500,
+    fontSize: 18,
+    fontWeight: 400,
     color: "#1B2430",
     flex: 1,
     overflow: "hidden",
@@ -161,7 +161,7 @@ const styles = {
     outline: "none",
     fontFamily: FONTFAMILY,
     fontSize: 24,
-    fontWeight: 600,
+    fontWeight: 400,
     color: "#1B2430",
     padding: "4px 0",
     marginBottom: 6,
@@ -372,81 +372,17 @@ function updateNodeInTree(nodes, id, updates) {
   });
 }
 
-// ---- Add dialog ----
-
-function AddDialog({ contextLabel, saving, onSave, onCancel }) {
-  const [title, setTitle] = useState("");
-  const [body, setBody] = useState("");
-  const titleRef = useRef(null);
-
-  useEffect(() => {
-    titleRef.current && titleRef.current.focus();
-  }, []);
-
-  const canSave = title.trim().length > 0 && !saving;
-
-  const handleSave = () => {
-    if (!canSave) return;
-    onSave({ title: title.trim(), body: body.trim() });
-  };
-
-  const handleKeyDown = (e) => {
-    if (e.key === "Escape") onCancel();
-    if (e.key === "Enter" && e.metaKey) handleSave();
-  };
-
-  return (
-    <div style={styles.overlay} onMouseDown={onCancel}>
-      <div
-        style={styles.dialog}
-        onMouseDown={(e) => e.stopPropagation()}
-        onKeyDown={handleKeyDown}
-      >
-        <div style={styles.dialogEyebrow}>{contextLabel}</div>
-        <h2 style={styles.dialogTitle}>Add an entry</h2>
-
-        <label style={styles.fieldLabel} htmlFor="block-title">
-          Title
-        </label>
-        <input
-          id="block-title"
-          ref={titleRef}
-          style={styles.input}
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder="Give it a name"
-        />
-
-        <label style={styles.fieldLabel} htmlFor="block-body">
-          Body
-        </label>
-        <textarea
-          id="block-body"
-          style={styles.textarea}
-          value={body}
-          onChange={(e) => setBody(e.target.value)}
-          placeholder="Write the details here"
-        />
-
-        <div style={styles.dialogActions}>
-          <button style={styles.btnGhost} onClick={onCancel}>
-            Cancel
-          </button>
-          <button
-            style={{
-              ...styles.btnPrimary,
-              opacity: canSave ? 1 : 0.4,
-              cursor: canSave ? "pointer" : "not-allowed",
-            }}
-            onClick={handleSave}
-            disabled={!canSave}
-          >
-            {saving ? "Saving…" : "Save"}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
+function addNodeToTree(nodes, parentId, newNode) {
+  if (parentId === null) return [...nodes, newNode];
+  return nodes.map((n) => {
+    if (n.id === parentId) {
+      return { ...n, children: [...(n.children || []), newNode] };
+    }
+    if (n.children && n.children.length) {
+      return { ...n, children: addNodeToTree(n.children, parentId, newNode) };
+    }
+    return n;
+  });
 }
 
 // ---- Delete confirmation dialog ----
@@ -511,7 +447,7 @@ function BlockRow({
       tabIndex={0}
     >
       <span style={styles.rowTab}>{String(index + 1).padStart(3, "0")}</span>
-      <span style={styles.rowTitle}>{block.title}</span>
+      <span style={styles.rowTitle}>{block.title || "Untitled"}</span>
       <div style={styles.rowControls}>
         {["up", "down", "outdent", "indent"].map((action) => (
           <button
@@ -546,7 +482,6 @@ function BlockRow({
 export default function BlockPlatform() {
   const [tree, setTree] = useState([]);
   const [path, setPath] = useState([]); // array of block ids, root -> ... -> active
-  const [dialogParentId, setDialogParentId] = useState(undefined); // undefined=closed, null=root
   const [deletingBlock, setDeletingBlock] = useState(null);
   const [deleting, setDeleting] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -556,6 +491,7 @@ export default function BlockPlatform() {
   const [titleDraft, setTitleDraft] = useState("");
   const [bodyDraft, setBodyDraft] = useState("");
   const bodyRef = useRef(null);
+  const titleRef = useRef(null);
 
   const activeId = path.length > 0 ? path[path.length - 1] : null;
   const activeBlock = activeId !== null ? findNode(tree, activeId) : null;
@@ -610,6 +546,12 @@ export default function BlockPlatform() {
     }
   }, [bodyDraft, activeId]);
 
+  useEffect(() => {
+    if (activeBlock && activeBlock.title === "" && titleRef.current) {
+      titleRef.current.focus();
+    }
+  }, [activeId]);
+
   const dirty =
     activeBlock &&
     (titleDraft !== activeBlock.title ||
@@ -627,20 +569,21 @@ export default function BlockPlatform() {
     else switchSideways(id);
   };
 
-  // ---- Create ----
-  const handleSaveNew = async ({ title, body }) => {
+  const createBlock = async (parentId) => {
     setSaving(true);
     try {
       const res = await fetch(`${API_BASE}/api/blocks`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title, body, parentId: dialogParentId }),
+        body: JSON.stringify({ title: "", body: "", parentId }),
       });
       if (!res.ok) throw new Error(`Server responded ${res.status}`);
-      setDialogParentId(undefined);
-      loadTree();
+      const newNode = await res.json();
+      setTree((prev) => addNodeToTree(prev, parentId, newNode));
+      return newNode;
     } catch (err) {
-      setError(`Couldn't save that block: ${err.message}`);
+      setError(`Couldn't create a new block: ${err.message}`);
+      return null;
     } finally {
       setSaving(false);
     }
@@ -648,7 +591,7 @@ export default function BlockPlatform() {
 
   // ---- Edit (active block) ----
   const handleSaveActive = async () => {
-    if (!activeBlock || !titleDraft.trim()) return;
+    if (!activeBlock) return;
     setSaving(true);
     try {
       const res = await fetch(`${API_BASE}/api/blocks/${activeBlock.id}`, {
@@ -716,7 +659,7 @@ export default function BlockPlatform() {
 
   const crumbs = [
     { label: "Root", isRoot: true },
-    ...path.map((id) => ({ label: findNode(tree, id)?.title || "…" })),
+    ...path.map((id) => ({ label: findNode(tree, id)?.title || "Untitled" })),
   ];
 
   return (
@@ -777,7 +720,10 @@ export default function BlockPlatform() {
             <div style={styles.addButtonWrap}>
               <button
                 style={styles.addButton}
-                onClick={() => setDialogParentId(null)}
+                onClick={async () => {
+                  const newNode = await createBlock(null);
+                  if (newNode) drillInto(newNode.id);
+                }}
               >
                 <span style={styles.plusGlyph}>+</span> Add block
               </button>
@@ -791,7 +737,9 @@ export default function BlockPlatform() {
             {parentBlock && (
               <div style={styles.parentCard} onClick={goUpOne}>
                 <div style={styles.parentCardLabel}>Container</div>
-                <div style={styles.parentCardTitle}>{parentBlock.title}</div>
+                <div style={styles.parentCardTitle}>
+                  {parentBlock.title || "Untitled"}
+                </div>
                 {parentBlock.body && (
                   <div style={styles.parentCardBody}>{parentBlock.body}</div>
                 )}
@@ -830,10 +778,11 @@ export default function BlockPlatform() {
                     </div>
 
                     <input
+                      ref={titleRef}
                       style={styles.activeTitleInput}
                       value={titleDraft}
                       onChange={(e) => setTitleDraft(e.target.value)}
-                      placeholder="Title"
+                      placeholder="Untitled"
                     />
                     <textarea
                       ref={bodyRef}
@@ -885,7 +834,10 @@ export default function BlockPlatform() {
                     <div style={styles.addButtonWrap}>
                       <button
                         style={styles.addButton}
-                        onClick={() => setDialogParentId(activeId)}
+                        onClick={async () => {
+                          const newNode = await createBlock(activeId);
+                          if (newNode) drillInto(newNode.id);
+                        }}
                       >
                         <span style={styles.plusGlyph}>+</span> Add nested block
                       </button>
@@ -906,11 +858,12 @@ export default function BlockPlatform() {
               <div style={styles.addButtonWrap}>
                 <button
                   style={styles.addButton}
-                  onClick={() =>
-                    setDialogParentId(
-                      path.length === 1 ? null : path[path.length - 2],
-                    )
-                  }
+                  onClick={async () => {
+                    const parentId =
+                      path.length === 1 ? null : path[path.length - 2];
+                    const newNode = await createBlock(parentId);
+                    if (newNode) switchSideways(newNode.id);
+                  }}
                 >
                   <span style={styles.plusGlyph}>+</span> Add block
                 </button>
@@ -919,19 +872,6 @@ export default function BlockPlatform() {
           </>
         )}
       </div>
-
-      {dialogParentId !== undefined && (
-        <AddDialog
-          contextLabel={
-            dialogParentId === null
-              ? "Top level"
-              : `Nested under: ${activeBlock?.title || ""}`
-          }
-          saving={saving}
-          onSave={handleSaveNew}
-          onCancel={() => setDialogParentId(undefined)}
-        />
-      )}
 
       {deletingBlock && (
         <ConfirmDeleteDialog
