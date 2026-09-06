@@ -140,6 +140,56 @@ const styles = {
     cursor: "pointer",
   },
   iconBtnDanger: { color: "#C98E82" },
+  kebabWrap: { position: "relative", flexShrink: 0 },
+  kebabTrigger: {
+    padding: "3px 8px",
+    background: "transparent",
+    border: "1px solid transparent",
+    borderRadius: 3,
+    color: "#7B8492",
+    fontSize: 16,
+    lineHeight: 1,
+    cursor: "pointer",
+  },
+  kebabMenu: {
+    position: "absolute",
+    top: "calc(100% + 4px)",
+    right: 0,
+    background: "#FFFFFF",
+    border: "1px solid #D3D8E2",
+    borderRadius: 4,
+    boxShadow: "0 6px 20px rgba(27,36,48,0.12)",
+    minWidth: 170,
+    padding: 4,
+    zIndex: 20,
+    display: "flex",
+    flexDirection: "column",
+  },
+  kebabMenuItem: {
+    textAlign: "left",
+    padding: "8px 10px",
+    fontSize: 13,
+    fontWeight: 500,
+    color: "#3A4250",
+    background: "transparent",
+    border: "none",
+    borderRadius: 3,
+    cursor: "pointer",
+  },
+  kebabMenuItemDanger: { color: "#B0483C" },
+  viewTitle: {
+    fontSize: 24,
+    fontWeight: 600,
+    color: "#1B2430",
+    marginBottom: 6,
+  },
+  viewBody: {
+    fontSize: 15,
+    lineHeight: 1.65,
+    color: "#3A4250",
+    whiteSpace: "pre-wrap",
+    marginBottom: 4,
+  },
 
   // ---- Bottom pane (active block "page") ----
   bottomPane: {
@@ -448,33 +498,74 @@ function BlockRow({
     >
       <span style={styles.rowTab}>{String(index + 1).padStart(3, "0")}</span>
       <span style={styles.rowTitle}>{block.title || "Untitled"}</span>
-      <div style={styles.rowControls}>
-        {["up", "down", "outdent", "indent"].map((action) => (
-          <button
-            key={action}
-            style={styles.iconBtn}
-            title={action}
-            onClick={(e) => {
-              e.stopPropagation();
-              onMove(block.id, action);
-            }}
-            onMouseEnter={(e) => (e.currentTarget.style.color = "#1B2430")}
-            onMouseLeave={(e) => (e.currentTarget.style.color = "#9AA3B2")}
-          >
-            {{ up: "▲", down: "▼", outdent: "⇤", indent: "⇥" }[action]}
-          </button>
-        ))}
-        <button
-          style={{ ...styles.iconBtn, ...styles.iconBtnDanger }}
-          title="Delete"
-          onClick={(e) => {
-            e.stopPropagation();
-            onRequestDelete(block);
-          }}
-        >
-          ✕
-        </button>
-      </div>
+      <KebabMenu
+        actions={[
+          { label: "Move up", onClick: () => onMove(block.id, "up") },
+          { label: "Move down", onClick: () => onMove(block.id, "down") },
+          {
+            label: "Move to parent level",
+            onClick: () => onMove(block.id, "outdent"),
+          },
+          {
+            label: "Nest under previous",
+            onClick: () => onMove(block.id, "indent"),
+          },
+          {
+            label: "Delete",
+            onClick: () => onRequestDelete(block),
+            danger: true,
+          },
+        ]}
+      />
+    </div>
+  );
+}
+
+function KebabMenu({ actions }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handleClick = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [open]);
+
+  return (
+    <div
+      style={styles.kebabWrap}
+      ref={ref}
+      onClick={(e) => e.stopPropagation()}
+    >
+      <button
+        style={styles.kebabTrigger}
+        onClick={() => setOpen((o) => !o)}
+        title="More actions"
+      >
+        ⋮
+      </button>
+      {open && (
+        <div style={styles.kebabMenu}>
+          {actions.map((a, i) => (
+            <button
+              key={i}
+              style={{
+                ...styles.kebabMenuItem,
+                ...(a.danger ? styles.kebabMenuItemDanger : {}),
+              }}
+              onClick={() => {
+                setOpen(false);
+                a.onClick();
+              }}
+            >
+              {a.label}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -490,6 +581,7 @@ export default function BlockPlatform() {
 
   const [titleDraft, setTitleDraft] = useState("");
   const [bodyDraft, setBodyDraft] = useState("");
+  const [isEditingActive, setIsEditingActive] = useState(false);
   const bodyRef = useRef(null);
   const titleRef = useRef(null);
 
@@ -539,23 +631,28 @@ export default function BlockPlatform() {
     activeBlock && activeBlock.body,
   ]);
 
+  // Blank (freshly created) blocks open straight into edit mode;
+  // existing blocks open in view mode until "Edit" is clicked.
+  useEffect(() => {
+    setIsEditingActive(activeBlock ? activeBlock.title === "" : false);
+  }, [activeId]);
+
+  useEffect(() => {
+    if (isEditingActive && titleRef.current) titleRef.current.focus();
+  }, [isEditingActive]);
+
   useEffect(() => {
     if (bodyRef.current) {
       bodyRef.current.style.height = "auto";
       bodyRef.current.style.height = `${bodyRef.current.scrollHeight}px`;
     }
-  }, [bodyDraft, activeId]);
+  }, [bodyDraft, activeId, isEditingActive]);
 
   useEffect(() => {
     if (activeBlock && activeBlock.title === "" && titleRef.current) {
       titleRef.current.focus();
     }
   }, [activeId]);
-
-  const dirty =
-    activeBlock &&
-    (titleDraft !== activeBlock.title ||
-      bodyDraft !== (activeBlock.body || ""));
 
   // ---- Navigation ----
   const drillInto = (id) => setPath((prev) => [...prev, id]);
@@ -610,6 +707,7 @@ export default function BlockPlatform() {
           body: updated.body,
         }),
       );
+      setIsEditingActive(false);
     } catch (err) {
       setError(`Couldn't save changes: ${err.message}`);
     } finally {
@@ -621,6 +719,7 @@ export default function BlockPlatform() {
     if (activeBlock) {
       setTitleDraft(activeBlock.title);
       setBodyDraft(activeBlock.body || "");
+      setIsEditingActive(false);
     }
   };
 
@@ -754,60 +853,90 @@ export default function BlockPlatform() {
                 block.id === activeId ? (
                   <div key={block.id} style={styles.bottomPane}>
                     <div style={styles.activeControlsRow}>
-                      {["up", "down", "outdent", "indent"].map((action) => (
-                        <button
-                          key={action}
-                          style={styles.iconBtn}
-                          title={action}
-                          onClick={() => handleMove(activeId, action)}
-                        >
+                      <KebabMenu
+                        actions={[
+                          ...(!isEditingActive
+                            ? [
+                                {
+                                  label: "Edit",
+                                  onClick: () => setIsEditingActive(true),
+                                },
+                              ]
+                            : []),
                           {
-                            { up: "▲", down: "▼", outdent: "⇤", indent: "⇥" }[
-                              action
-                            ]
-                          }
-                        </button>
-                      ))}
-                      <button
-                        style={{ ...styles.iconBtn, ...styles.iconBtnDanger }}
-                        title="Delete"
-                        onClick={() => setDeletingBlock(activeBlock)}
-                      >
-                        ✕
-                      </button>
+                            label: "Move up",
+                            onClick: () => handleMove(activeId, "up"),
+                          },
+                          {
+                            label: "Move down",
+                            onClick: () => handleMove(activeId, "down"),
+                          },
+                          {
+                            label: "Move to parent level",
+                            onClick: () => handleMove(activeId, "outdent"),
+                          },
+                          {
+                            label: "Nest under previous",
+                            onClick: () => handleMove(activeId, "indent"),
+                          },
+                          {
+                            label: "Delete",
+                            onClick: () => setDeletingBlock(activeBlock),
+                            danger: true,
+                          },
+                        ]}
+                      />
                     </div>
 
-                    <input
-                      ref={titleRef}
-                      style={styles.activeTitleInput}
-                      value={titleDraft}
-                      onChange={(e) => setTitleDraft(e.target.value)}
-                      placeholder="Untitled"
-                    />
-                    <textarea
-                      ref={bodyRef}
-                      style={styles.activeBodyTextarea}
-                      value={bodyDraft}
-                      onChange={(e) => setBodyDraft(e.target.value)}
-                      placeholder="Write the details here"
-                    />
-
-                    {dirty && (
-                      <div style={styles.saveBar}>
-                        <button
-                          style={styles.btnGhost}
-                          onClick={handleCancelActiveEdit}
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          style={styles.btnPrimary}
-                          onClick={handleSaveActive}
-                          disabled={saving}
-                        >
-                          {saving ? "Saving…" : "Save"}
-                        </button>
-                      </div>
+                    {isEditingActive ? (
+                      <>
+                        <input
+                          ref={titleRef}
+                          style={styles.activeTitleInput}
+                          value={titleDraft}
+                          onChange={(e) => setTitleDraft(e.target.value)}
+                          placeholder="Untitled"
+                        />
+                        <textarea
+                          ref={bodyRef}
+                          style={styles.activeBodyTextarea}
+                          value={bodyDraft}
+                          onChange={(e) => setBodyDraft(e.target.value)}
+                          placeholder="Write the details here"
+                        />
+                        <div style={styles.saveBar}>
+                          <button
+                            style={styles.btnGhost}
+                            onClick={handleCancelActiveEdit}
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            style={styles.btnPrimary}
+                            onClick={handleSaveActive}
+                            disabled={saving}
+                          >
+                            {saving ? "Saving…" : "Save"}
+                          </button>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div style={styles.viewTitle}>
+                          {activeBlock.title || "Untitled"}
+                        </div>
+                        <div style={styles.viewBody}>
+                          {activeBlock.body ? (
+                            activeBlock.body
+                          ) : (
+                            <span
+                              style={{ color: "#AEB4BF", fontStyle: "italic" }}
+                            >
+                              No content yet.
+                            </span>
+                          )}
+                        </div>
+                      </>
                     )}
 
                     <div style={styles.divider} />
