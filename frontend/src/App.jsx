@@ -60,7 +60,7 @@ const styles = {
   parentCard: {
     background: "#E7ECF4",
     border: "1px solid #C9D2E0",
-    borderRadius: 4,
+    borderRadius: 10,
     padding: "16px 20px",
     marginBottom: 14,
     cursor: "pointer",
@@ -96,7 +96,7 @@ const styles = {
     alignItems: "center",
     gap: 10,
     padding: "18px 27px",
-    borderRadius: 3,
+    borderRadius: 8,
     border: "1px solid transparent",
     cursor: "pointer",
     background: "#FFFFFF",
@@ -115,7 +115,7 @@ const styles = {
     color: "#B8912F",
     border: "1px solid #E4D6A7",
     background: "#FBF6E9",
-    borderRadius: 2,
+    borderRadius: 6,
     padding: "2px 6px",
     flexShrink: 0,
   },
@@ -157,7 +157,7 @@ const styles = {
     right: 0,
     background: "#FFFFFF",
     border: "1px solid #D3D8E2",
-    borderRadius: 4,
+    borderRadius: 8,
     boxShadow: "0 6px 20px rgba(27,36,48,0.12)",
     minWidth: 170,
     padding: 4,
@@ -195,7 +195,7 @@ const styles = {
   bottomPane: {
     background: "#FFFFFF",
     border: "1px solid #D3D8E2",
-    borderRadius: 4,
+    borderRadius: 10,
     padding: "26px 28px 24px",
   },
   activeControlsRow: {
@@ -237,7 +237,7 @@ const styles = {
     alignItems: "center",
     gap: 10,
     cursor: "pointer",
-    marginBottom: 4,
+    marginBottom: 16,
   },
   activeHeaderChevron: {
     fontSize: 13,
@@ -248,8 +248,8 @@ const styles = {
   },
   activeHeaderTitle: {
     flex: 1,
-    fontSize: 18,
-    fontWeight: 600,
+    fontSize: 21,
+    fontWeight: 400,
     color: "#1B2430",
     overflow: "hidden",
     textOverflow: "ellipsis",
@@ -261,7 +261,7 @@ const styles = {
     outline: "none",
     fontFamily: "'Inter', sans-serif",
     fontSize: 18,
-    fontWeight: 600,
+    fontWeight: 400,
     color: "#1B2430",
     background: "transparent",
     padding: 0,
@@ -280,7 +280,7 @@ const styles = {
     background: "transparent",
     border: "1px solid transparent",
     color: "#5B6472",
-    borderRadius: 3,
+    borderRadius: 6,
     cursor: "pointer",
   },
   btnPrimary: {
@@ -290,7 +290,7 @@ const styles = {
     background: "#1B2430",
     border: "1px solid #1B2430",
     color: "#FFFFFF",
-    borderRadius: 3,
+    borderRadius: 6,
     cursor: "pointer",
   },
   btnDanger: {
@@ -300,7 +300,7 @@ const styles = {
     background: "#B0483C",
     border: "1px solid #B0483C",
     color: "#FFFFFF",
-    borderRadius: 3,
+    borderRadius: 6,
     cursor: "pointer",
   },
   divider: { borderTop: "1px solid #EEF0F4", margin: "18px 0 16px" },
@@ -326,7 +326,7 @@ const styles = {
     padding: "14px 20px",
     background: "transparent",
     border: "1.5px dashed #B7BFCC",
-    borderRadius: 3,
+    borderRadius: 8,
     color: "#5B6472",
     fontFamily: FONTFAMILY,
     fontSize: 14,
@@ -352,7 +352,7 @@ const styles = {
   },
   dialog: {
     background: "#FFFFFF",
-    borderRadius: 4,
+    borderRadius: 10,
     width: "100%",
     maxWidth: 480,
     padding: 28,
@@ -430,6 +430,11 @@ const AnimationStyles = () => (
       to   { opacity: 1; transform: translateY(0); }
     }
     .pane-animate { animation: paneEnter 220ms ease; }
+    @keyframes paneExit {
+      from { opacity: 1; transform: translateY(0); }
+      to   { opacity: 0; transform: translateY(10px); }
+    }
+    .pane-closing { animation: paneExit 220ms ease; }
   `}</style>
 );
 
@@ -617,6 +622,7 @@ export default function BlockPlatform() {
   const [bodyDraft, setBodyDraft] = useState("");
   const [isEditingActive, setIsEditingActive] = useState(false);
   const [isExpanded, setIsExpanded] = useState(true);
+  const [isClosing, setIsClosing] = useState(false);
   const bodyRef = useRef(null);
   const titleRef = useRef(null);
 
@@ -671,6 +677,7 @@ export default function BlockPlatform() {
   useEffect(() => {
     setIsEditingActive(activeBlock ? activeBlock.title === "" : false);
     setIsExpanded(true);
+    setIsClosing(false);
   }, [activeId]);
 
   useEffect(() => {
@@ -692,7 +699,16 @@ export default function BlockPlatform() {
 
   const showExpanded = isEditingActive || isExpanded;
   const toggleActiveExpanded = () => {
-    if (!isEditingActive) setIsExpanded((v) => !v);
+    if (isEditingActive || isClosing) return;
+    if (isExpanded) {
+      setIsClosing(true);
+      setTimeout(() => {
+        setIsExpanded(false);
+        setIsClosing(false);
+      }, 220); // matches paneExit's duration
+    } else {
+      setIsExpanded(true);
+    }
   };
   const drillInto = (id) => setPath((prev) => [...prev, id]);
   const switchSideways = (id) => setPath((prev) => [...prev.slice(0, -1), id]);
@@ -889,14 +905,18 @@ export default function BlockPlatform() {
               style={styles.topPaneList}
             >
               {topPaneList.map((block, i) =>
-                block.id === activeId ? (
-                  <div key={block.id} style={styles.bottomPane}>
+                block.id === activeId && showExpanded ? (
+                  <div
+                    key={block.id}
+                    style={styles.bottomPane}
+                    className={isClosing ? "pane-closing" : "pane-animate"}
+                  >
                     <div
                       style={styles.activeHeaderRow}
                       onClick={toggleActiveExpanded}
                     >
-                      <span style={styles.activeHeaderChevron}>
-                        {showExpanded ? "▾" : "▸"}
+                      <span style={styles.rowTab}>
+                        {String(i + 1).padStart(3, "0")}
                       </span>
                       {isEditingActive ? (
                         <input
@@ -946,93 +966,89 @@ export default function BlockPlatform() {
                         ]}
                       />
                     </div>
-                    {showExpanded && (
+
+                    {isEditingActive ? (
                       <>
-                        {isEditingActive ? (
-                          <>
-                            <textarea
-                              ref={bodyRef}
-                              style={styles.activeBodyTextarea}
-                              value={bodyDraft}
-                              onChange={(e) => setBodyDraft(e.target.value)}
-                              placeholder="Write the details here"
-                            />
-                            <div style={styles.saveBar}>
-                              <button
-                                style={styles.btnGhost}
-                                onClick={handleCancelActiveEdit}
-                              >
-                                Cancel
-                              </button>
-                              <button
-                                style={styles.btnPrimary}
-                                onClick={handleSaveActive}
-                                disabled={saving}
-                              >
-                                {saving ? "Saving…" : "Save"}
-                              </button>
-                            </div>
-                          </>
-                        ) : (
-                          <div style={styles.viewBody}>
-                            {activeBlock.body ? (
-                              activeBlock.body
-                            ) : (
-                              <span
-                                style={{
-                                  color: "#AEB4BF",
-                                  fontStyle: "italic",
-                                }}
-                              >
-                                No content yet.
-                              </span>
-                            )}
-                          </div>
-                        )}
-
-                        <div style={styles.divider} />
-
-                        <div style={styles.sectionLabel}>Nested blocks</div>
-                        <div style={styles.childrenList}>
-                          {(activeBlock.children || []).length === 0 && (
-                            <div style={styles.emptyChildren}>
-                              No nested blocks yet.
-                            </div>
-                          )}
-                          {(activeBlock.children || []).map((child, ci) => (
-                            <BlockRow
-                              key={child.id}
-                              block={child}
-                              index={ci}
-                              onSelect={drillInto}
-                              onMove={handleMove}
-                              onRequestDelete={setDeletingBlock}
-                            />
-                          ))}
-                        </div>
-
-                        <div style={styles.addButtonWrap}>
+                        <textarea
+                          ref={bodyRef}
+                          style={styles.activeBodyTextarea}
+                          value={bodyDraft}
+                          onChange={(e) => setBodyDraft(e.target.value)}
+                          placeholder="Write the details here"
+                        />
+                        <div style={styles.saveBar}>
                           <button
-                            style={styles.addButton}
-                            onClick={async () => {
-                              const newNode = await createBlock(activeId);
-                              if (newNode) drillInto(newNode.id);
-                            }}
+                            style={styles.btnGhost}
+                            onClick={handleCancelActiveEdit}
                           >
-                            <span style={styles.plusGlyph}>+</span> Add nested
-                            block
+                            Cancel
+                          </button>
+                          <button
+                            style={styles.btnPrimary}
+                            onClick={handleSaveActive}
+                            disabled={saving}
+                          >
+                            {saving ? "Saving…" : "Save"}
                           </button>
                         </div>
                       </>
+                    ) : (
+                      <div style={styles.viewBody}>
+                        {activeBlock.body ? (
+                          activeBlock.body
+                        ) : (
+                          <span
+                            style={{ color: "#AEB4BF", fontStyle: "italic" }}
+                          >
+                            No content yet.
+                          </span>
+                        )}
+                      </div>
                     )}
+
+                    <div style={styles.divider} />
+
+                    <div style={styles.sectionLabel}>Nested blocks</div>
+                    <div style={styles.childrenList}>
+                      {(activeBlock.children || []).length === 0 && (
+                        <div style={styles.emptyChildren}>
+                          No nested blocks yet.
+                        </div>
+                      )}
+                      {(activeBlock.children || []).map((child, ci) => (
+                        <BlockRow
+                          key={child.id}
+                          block={child}
+                          index={ci}
+                          onSelect={drillInto}
+                          onMove={handleMove}
+                          onRequestDelete={setDeletingBlock}
+                        />
+                      ))}
+                    </div>
+
+                    <div style={styles.addButtonWrap}>
+                      <button
+                        style={styles.addButton}
+                        onClick={async () => {
+                          const newNode = await createBlock(activeId);
+                          if (newNode) drillInto(newNode.id);
+                        }}
+                      >
+                        <span style={styles.plusGlyph}>+</span> Add nested block
+                      </button>
+                    </div>
                   </div>
                 ) : (
                   <BlockRow
                     key={block.id}
                     block={block}
                     index={i}
-                    muted
-                    onSelect={handleTopPaneSelect}
+                    onSelect={
+                      block.id === activeId
+                        ? () => setIsExpanded(true)
+                        : handleTopPaneSelect
+                    }
                     onMove={handleMove}
                     onRequestDelete={setDeletingBlock}
                   />
