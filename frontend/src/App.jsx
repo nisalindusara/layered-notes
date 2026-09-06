@@ -232,6 +232,40 @@ const styles = {
     minHeight: 60,
     background: "transparent",
   },
+  activeHeaderRow: {
+    display: "flex",
+    alignItems: "center",
+    gap: 10,
+    cursor: "pointer",
+    marginBottom: 4,
+  },
+  activeHeaderChevron: {
+    fontSize: 13,
+    color: "#9AA3B2",
+    flexShrink: 0,
+    width: 14,
+    textAlign: "center",
+  },
+  activeHeaderTitle: {
+    flex: 1,
+    fontSize: 18,
+    fontWeight: 600,
+    color: "#1B2430",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  },
+  activeHeaderTitleInput: {
+    flex: 1,
+    border: "none",
+    outline: "none",
+    fontFamily: "'Inter', sans-serif",
+    fontSize: 18,
+    fontWeight: 600,
+    color: "#1B2430",
+    background: "transparent",
+    padding: 0,
+  },
   saveBar: {
     display: "flex",
     justifyContent: "flex-end",
@@ -582,6 +616,7 @@ export default function BlockPlatform() {
   const [titleDraft, setTitleDraft] = useState("");
   const [bodyDraft, setBodyDraft] = useState("");
   const [isEditingActive, setIsEditingActive] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(true);
   const bodyRef = useRef(null);
   const titleRef = useRef(null);
 
@@ -635,6 +670,7 @@ export default function BlockPlatform() {
   // existing blocks open in view mode until "Edit" is clicked.
   useEffect(() => {
     setIsEditingActive(activeBlock ? activeBlock.title === "" : false);
+    setIsExpanded(true);
   }, [activeId]);
 
   useEffect(() => {
@@ -654,7 +690,10 @@ export default function BlockPlatform() {
     }
   }, [activeId]);
 
-  // ---- Navigation ----
+  const showExpanded = isEditingActive || isExpanded;
+  const toggleActiveExpanded = () => {
+    if (!isEditingActive) setIsExpanded((v) => !v);
+  };
   const drillInto = (id) => setPath((prev) => [...prev, id]);
   const switchSideways = (id) => setPath((prev) => [...prev.slice(0, -1), id]);
   const goUpOne = () => setPath((prev) => prev.slice(0, -1));
@@ -852,7 +891,27 @@ export default function BlockPlatform() {
               {topPaneList.map((block, i) =>
                 block.id === activeId ? (
                   <div key={block.id} style={styles.bottomPane}>
-                    <div style={styles.activeControlsRow}>
+                    <div
+                      style={styles.activeHeaderRow}
+                      onClick={toggleActiveExpanded}
+                    >
+                      <span style={styles.activeHeaderChevron}>
+                        {showExpanded ? "▾" : "▸"}
+                      </span>
+                      {isEditingActive ? (
+                        <input
+                          ref={titleRef}
+                          style={styles.activeHeaderTitleInput}
+                          value={titleDraft}
+                          onChange={(e) => setTitleDraft(e.target.value)}
+                          placeholder="Untitled"
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      ) : (
+                        <span style={styles.activeHeaderTitle}>
+                          {activeBlock.title || "Untitled"}
+                        </span>
+                      )}
                       <KebabMenu
                         actions={[
                           ...(!isEditingActive
@@ -887,90 +946,85 @@ export default function BlockPlatform() {
                         ]}
                       />
                     </div>
+                    {showExpanded && (
+                      <>
+                        {isEditingActive ? (
+                          <>
+                            <textarea
+                              ref={bodyRef}
+                              style={styles.activeBodyTextarea}
+                              value={bodyDraft}
+                              onChange={(e) => setBodyDraft(e.target.value)}
+                              placeholder="Write the details here"
+                            />
+                            <div style={styles.saveBar}>
+                              <button
+                                style={styles.btnGhost}
+                                onClick={handleCancelActiveEdit}
+                              >
+                                Cancel
+                              </button>
+                              <button
+                                style={styles.btnPrimary}
+                                onClick={handleSaveActive}
+                                disabled={saving}
+                              >
+                                {saving ? "Saving…" : "Save"}
+                              </button>
+                            </div>
+                          </>
+                        ) : (
+                          <div style={styles.viewBody}>
+                            {activeBlock.body ? (
+                              activeBlock.body
+                            ) : (
+                              <span
+                                style={{
+                                  color: "#AEB4BF",
+                                  fontStyle: "italic",
+                                }}
+                              >
+                                No content yet.
+                              </span>
+                            )}
+                          </div>
+                        )}
 
-                    {isEditingActive ? (
-                      <>
-                        <input
-                          ref={titleRef}
-                          style={styles.activeTitleInput}
-                          value={titleDraft}
-                          onChange={(e) => setTitleDraft(e.target.value)}
-                          placeholder="Untitled"
-                        />
-                        <textarea
-                          ref={bodyRef}
-                          style={styles.activeBodyTextarea}
-                          value={bodyDraft}
-                          onChange={(e) => setBodyDraft(e.target.value)}
-                          placeholder="Write the details here"
-                        />
-                        <div style={styles.saveBar}>
-                          <button
-                            style={styles.btnGhost}
-                            onClick={handleCancelActiveEdit}
-                          >
-                            Cancel
-                          </button>
-                          <button
-                            style={styles.btnPrimary}
-                            onClick={handleSaveActive}
-                            disabled={saving}
-                          >
-                            {saving ? "Saving…" : "Save"}
-                          </button>
-                        </div>
-                      </>
-                    ) : (
-                      <>
-                        <div style={styles.viewTitle}>
-                          {activeBlock.title || "Untitled"}
-                        </div>
-                        <div style={styles.viewBody}>
-                          {activeBlock.body ? (
-                            activeBlock.body
-                          ) : (
-                            <span
-                              style={{ color: "#AEB4BF", fontStyle: "italic" }}
-                            >
-                              No content yet.
-                            </span>
+                        <div style={styles.divider} />
+
+                        <div style={styles.sectionLabel}>Nested blocks</div>
+                        <div style={styles.childrenList}>
+                          {(activeBlock.children || []).length === 0 && (
+                            <div style={styles.emptyChildren}>
+                              No nested blocks yet.
+                            </div>
                           )}
+                          {(activeBlock.children || []).map((child, ci) => (
+                            <BlockRow
+                              key={child.id}
+                              block={child}
+                              index={ci}
+                              onSelect={drillInto}
+                              onMove={handleMove}
+                              onRequestDelete={setDeletingBlock}
+                            />
+                          ))}
+                        </div>
+
+                        <div style={styles.addButtonWrap}>
+                          <button
+                            style={styles.addButton}
+                            onClick={async () => {
+                              const newNode = await createBlock(activeId);
+                              if (newNode) drillInto(newNode.id);
+                            }}
+                          >
+                            <span style={styles.plusGlyph}>+</span> Add nested
+                            block
+                          </button>
                         </div>
                       </>
                     )}
-
-                    <div style={styles.divider} />
-
-                    <div style={styles.sectionLabel}>Nested blocks</div>
-                    <div style={styles.childrenList}>
-                      {(activeBlock.children || []).length === 0 && (
-                        <div style={styles.emptyChildren}>
-                          No nested blocks yet.
-                        </div>
-                      )}
-                      {(activeBlock.children || []).map((child, ci) => (
-                        <BlockRow
-                          key={child.id}
-                          block={child}
-                          index={ci}
-                          onSelect={drillInto}
-                          onMove={handleMove}
-                          onRequestDelete={setDeletingBlock}
-                        />
-                      ))}
-                    </div>
-
-                    <div style={styles.addButtonWrap}>
-                      <button
-                        style={styles.addButton}
-                        onClick={async () => {
-                          const newNode = await createBlock(activeId);
-                          if (newNode) drillInto(newNode.id);
-                        }}
-                      >
-                        <span style={styles.plusGlyph}>+</span> Add nested block
-                      </button>
-                    </div>
                   </div>
                 ) : (
                   <BlockRow
