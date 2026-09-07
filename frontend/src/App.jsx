@@ -429,12 +429,12 @@ const AnimationStyles = () => (
       from { opacity: 0; transform: translateY(10px); }
       to   { opacity: 1; transform: translateY(0); }
     }
-    .pane-animate { animation: paneEnter 220ms ease; }
+    .pane-animate { animation: paneEnter 220ms ease-out; }
     @keyframes paneExit {
       from { opacity: 1; transform: translateY(0); }
       to   { opacity: 0; transform: translateY(10px); }
     }
-    .pane-closing { animation: paneExit 220ms ease; }
+    .pane-closing { animation: paneExit 220ms ease-in; }
   `}</style>
 );
 
@@ -967,76 +967,90 @@ export default function BlockPlatform() {
                       />
                     </div>
 
-                    {isEditingActive ? (
-                      <>
-                        <textarea
-                          ref={bodyRef}
-                          style={styles.activeBodyTextarea}
-                          value={bodyDraft}
-                          onChange={(e) => setBodyDraft(e.target.value)}
-                          placeholder="Write the details here"
-                        />
-                        <div style={styles.saveBar}>
-                          <button
-                            style={styles.btnGhost}
-                            onClick={handleCancelActiveEdit}
-                          >
-                            Cancel
-                          </button>
-                          <button
-                            style={styles.btnPrimary}
-                            onClick={handleSaveActive}
-                            disabled={saving}
-                          >
-                            {saving ? "Saving…" : "Save"}
-                          </button>
-                        </div>
-                      </>
-                    ) : (
-                      <div style={styles.viewBody}>
-                        {activeBlock.body ? (
-                          activeBlock.body
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateRows: isClosing ? "0fr" : "1fr",
+                        transition: "grid-template-rows 220ms ease-in-out",
+                      }}
+                    >
+                      <div style={{ overflow: "hidden" }}>
+                        {isEditingActive ? (
+                          <>
+                            <textarea
+                              ref={bodyRef}
+                              style={styles.activeBodyTextarea}
+                              value={bodyDraft}
+                              onChange={(e) => setBodyDraft(e.target.value)}
+                              placeholder="Write the details here"
+                            />
+                            <div style={styles.saveBar}>
+                              <button
+                                style={styles.btnGhost}
+                                onClick={handleCancelActiveEdit}
+                              >
+                                Cancel
+                              </button>
+                              <button
+                                style={styles.btnPrimary}
+                                onClick={handleSaveActive}
+                                disabled={saving}
+                              >
+                                {saving ? "Saving…" : "Save"}
+                              </button>
+                            </div>
+                          </>
                         ) : (
-                          <span
-                            style={{ color: "#AEB4BF", fontStyle: "italic" }}
-                          >
-                            No content yet.
-                          </span>
+                          <div style={styles.viewBody}>
+                            {activeBlock.body ? (
+                              activeBlock.body
+                            ) : (
+                              <span
+                                style={{
+                                  color: "#AEB4BF",
+                                  fontStyle: "italic",
+                                }}
+                              >
+                                No content yet.
+                              </span>
+                            )}
+                          </div>
                         )}
-                      </div>
-                    )}
 
-                    <div style={styles.divider} />
+                        <div style={styles.divider} />
 
-                    <div style={styles.sectionLabel}>Nested blocks</div>
-                    <div style={styles.childrenList}>
-                      {(activeBlock.children || []).length === 0 && (
-                        <div style={styles.emptyChildren}>
-                          No nested blocks yet.
+                        <div style={styles.sectionLabel}>Nested blocks</div>
+                        <div style={styles.childrenList}>
+                          {(activeBlock.children || []).length === 0 && (
+                            <div style={styles.emptyChildren}>
+                              No nested blocks yet.
+                            </div>
+                          )}
+                          {(activeBlock.children || []).map((child, ci) => (
+                            <BlockRow
+                              key={child.id}
+                              block={child}
+                              index={ci}
+                              onSelect={drillInto}
+                              onMove={handleMove}
+                              onRequestDelete={setDeletingBlock}
+                            />
+                          ))}
                         </div>
-                      )}
-                      {(activeBlock.children || []).map((child, ci) => (
-                        <BlockRow
-                          key={child.id}
-                          block={child}
-                          index={ci}
-                          onSelect={drillInto}
-                          onMove={handleMove}
-                          onRequestDelete={setDeletingBlock}
-                        />
-                      ))}
-                    </div>
 
-                    <div style={styles.addButtonWrap}>
-                      <button
-                        style={styles.addButton}
-                        onClick={async () => {
-                          const newNode = await createBlock(activeId);
-                          if (newNode) drillInto(newNode.id);
-                        }}
-                      >
-                        <span style={styles.plusGlyph}>+</span> Add nested block
-                      </button>
+                        <div style={styles.addButtonWrap}>
+                          <button
+                            style={styles.addButton}
+                            onClick={async () => {
+                              const newNode = await createBlock(activeId);
+                              if (newNode) drillInto(newNode.id);
+                            }}
+                          >
+                            <span style={styles.plusGlyph}>+</span> Add nested
+                            block
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 ) : (
