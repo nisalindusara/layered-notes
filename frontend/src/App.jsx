@@ -420,6 +420,54 @@ const styles = {
     fontStyle: "italic",
   },
   statusLine: { fontSize: 12, color: "#B0483C", marginBottom: 16 },
+  draftCard: {
+    background: "#EEF0F3",
+    border: "1px dashed #C7CCD6",
+    borderRadius: 8,
+    padding: "14px 16px",
+  },
+  draftLabel: {
+    fontSize: 11,
+    fontWeight: 700,
+    letterSpacing: "0.08em",
+    textTransform: "uppercase",
+    color: "#9AA3B2",
+    marginBottom: 8,
+  },
+  draftTitleInput: {
+    width: "100%",
+    boxSizing: "border-box",
+    border: "none",
+    outline: "none",
+    background: "transparent",
+    fontFamily: "'Inter', sans-serif",
+    fontSize: 16,
+    fontWeight: 600,
+    color: "#3A4250",
+    marginBottom: 8,
+    padding: "4px 0",
+  },
+  draftBodyTextarea: {
+    width: "100%",
+    boxSizing: "border-box",
+    border: "none",
+    outline: "none",
+    background: "transparent",
+    resize: "none",
+    overflow: "hidden",
+    fontFamily: "'Inter', sans-serif",
+    fontSize: 14,
+    lineHeight: 1.6,
+    color: "#5B6472",
+    padding: "4px 0",
+    minHeight: 50,
+  },
+  draftActions: {
+    display: "flex",
+    justifyContent: "flex-end",
+    gap: 8,
+    marginTop: 10,
+  },
 };
 
 // One-time keyframes for the pane slide/fade transition, injected globally.
@@ -609,6 +657,50 @@ function KebabMenu({ actions }) {
   );
 }
 
+function DraftCard({ draft, onChange, onSave, onCancel, saving }) {
+  const titleRef = useRef(null);
+  const bodyRef = useRef(null);
+
+  useEffect(() => {
+    titleRef.current && titleRef.current.focus();
+  }, []);
+
+  useEffect(() => {
+    if (bodyRef.current) {
+      bodyRef.current.style.height = "auto";
+      bodyRef.current.style.height = `${bodyRef.current.scrollHeight}px`;
+    }
+  }, [draft.body]);
+
+  return (
+    <div style={styles.draftCard}>
+      <div style={styles.draftLabel}>Draft</div>
+      <input
+        ref={titleRef}
+        style={styles.draftTitleInput}
+        value={draft.title}
+        onChange={(e) => onChange({ title: e.target.value })}
+        placeholder="Untitled"
+      />
+      <textarea
+        ref={bodyRef}
+        style={styles.draftBodyTextarea}
+        value={draft.body}
+        onChange={(e) => onChange({ body: e.target.value })}
+        placeholder="Write the details here"
+      />
+      <div style={styles.draftActions}>
+        <button style={styles.btnGhost} onClick={onCancel}>
+          Cancel
+        </button>
+        <button style={styles.btnPrimary} onClick={onSave} disabled={saving}>
+          {saving ? "Saving…" : "Save"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function BlockPlatform() {
   const [tree, setTree] = useState([]);
   const [path, setPath] = useState([]); // array of block ids, root -> ... -> active
@@ -623,6 +715,14 @@ export default function BlockPlatform() {
   const [isEditingActive, setIsEditingActive] = useState(false);
   const [isExpanded, setIsExpanded] = useState(true);
   const [isClosing, setIsClosing] = useState(false);
+  const [drafts, setDrafts] = useState(() => {
+    try {
+      const raw = localStorage.getItem("block-drafts");
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
+  });
   const bodyRef = useRef(null);
   const titleRef = useRef(null);
 
@@ -697,6 +797,14 @@ export default function BlockPlatform() {
     }
   }, [activeId]);
 
+  useEffect(() => {
+    try {
+      localStorage.setItem("block-drafts", JSON.stringify(drafts));
+    } catch {
+      // e.g. private browsing — drafts just won't survive a reload in that case
+    }
+  }, [drafts]);
+
   const showExpanded = isEditingActive || isExpanded;
   const toggleActiveExpanded = () => {
     if (isEditingActive || isClosing) return;
@@ -721,21 +829,54 @@ export default function BlockPlatform() {
     else switchSideways(id);
   };
 
-  const createBlock = async (parentId) => {
+  const addDraft = (parentId) => {
+    setDrafts((prev) => [
+      ...prev,
+      {
+        id: `draft-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        parentId,
+        title: "",
+        body: "",
+      },
+    ]);
+  };
+
+  const updateDraft = (id, changes) => {
+    setDrafts((prev) =>
+      prev.map((d) => (d.id === id ? { ...d, ...changes } : d)),
+    );
+  };
+
+  const cancelDraft = (id) => {
+    setDrafts((prev) => prev.filter((d) => d.id !== id));
+  };
+
+  const saveDraft = async (id) => {
+    const draft = drafts.find((d) => d.id === id);
+    if (!draft) return;
+
+    if (!draft.title.trim() && !draft.body.trim()) {
+      cancelDraft(id); // nothing typed — discard silently, no block created
+      return;
+    }
+
     setSaving(true);
     try {
       const res = await fetch(`${API_BASE}/api/blocks`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: "", body: "", parentId }),
+        body: JSON.stringify({
+          title: draft.title,
+          body: draft.body,
+          parentId: draft.parentId,
+        }),
       });
       if (!res.ok) throw new Error(`Server responded ${res.status}`);
       const newNode = await res.json();
-      setTree((prev) => addNodeToTree(prev, parentId, newNode));
-      return newNode;
+      setTree((prev) => addNodeToTree(prev, draft.parentId, newNode));
+      cancelDraft(id); // saved — remove from the local drafts list
     } catch (err) {
-      setError(`Couldn't create a new block: ${err.message}`);
-      return null;
+      setError(`Couldn't save that block: ${err.message}`);
     } finally {
       setSaving(false);
     }
@@ -871,12 +1012,23 @@ export default function BlockPlatform() {
                 />
               ))}
             </div>
+            {drafts
+              .filter((d) => d.parentId === null)
+              .map((draft) => (
+                <DraftCard
+                  key={draft.id}
+                  draft={draft}
+                  onChange={(c) => updateDraft(draft.id, c)}
+                  onSave={() => saveDraft(draft.id)}
+                  onCancel={() => cancelDraft(draft.id)}
+                  saving={saving}
+                />
+              ))}
             <div style={styles.addButtonWrap}>
               <button
                 style={styles.addButton}
-                onClick={async () => {
-                  const newNode = await createBlock(null);
-                  if (newNode) drillInto(newNode.id);
+                onClick={() => {
+                  addDraft(null);
                 }}
               >
                 <span style={styles.plusGlyph}>+</span> Add block
@@ -1037,14 +1189,22 @@ export default function BlockPlatform() {
                             />
                           ))}
                         </div>
-
+                        {drafts
+                          .filter((d) => d.parentId === activeId)
+                          .map((draft) => (
+                            <DraftCard
+                              key={draft.id}
+                              draft={draft}
+                              onChange={(c) => updateDraft(draft.id, c)}
+                              onSave={() => saveDraft(draft.id)}
+                              onCancel={() => cancelDraft(draft.id)}
+                              saving={saving}
+                            />
+                          ))}
                         <div style={styles.addButtonWrap}>
                           <button
                             style={styles.addButton}
-                            onClick={async () => {
-                              const newNode = await createBlock(activeId);
-                              if (newNode) drillInto(newNode.id);
-                            }}
+                            onClick={() => addDraft(activeId)}
                           >
                             <span style={styles.plusGlyph}>+</span> Add nested
                             block
@@ -1068,15 +1228,28 @@ export default function BlockPlatform() {
                   />
                 ),
               )}
+              {drafts
+                .filter(
+                  (d) =>
+                    d.parentId ===
+                    (path.length === 1 ? null : path[path.length - 2]),
+                )
+                .map((draft) => (
+                  <DraftCard
+                    key={draft.id}
+                    draft={draft}
+                    onChange={(c) => updateDraft(draft.id, c)}
+                    onSave={() => saveDraft(draft.id)}
+                    onCancel={() => cancelDraft(draft.id)}
+                    saving={saving}
+                  />
+                ))}
               <div style={styles.addButtonWrap}>
                 <button
                   style={styles.addButton}
-                  onClick={async () => {
-                    const parentId =
-                      path.length === 1 ? null : path[path.length - 2];
-                    const newNode = await createBlock(parentId);
-                    if (newNode) switchSideways(newNode.id);
-                  }}
+                  onClick={() =>
+                    addDraft(path.length === 1 ? null : path[path.length - 2])
+                  }
                 >
                   <span style={styles.plusGlyph}>+</span> Add block
                 </button>
