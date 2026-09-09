@@ -468,6 +468,95 @@ const styles = {
     gap: 8,
     marginTop: 10,
   },
+  bodyBlocksWrap: { display: "flex", flexDirection: "column", gap: 2 },
+  bodyBlockWrap: { position: "relative" },
+  bodyBlockText: {
+    width: "100%",
+    boxSizing: "border-box",
+    border: "none",
+    outline: "none",
+    resize: "none",
+    overflow: "hidden",
+    fontFamily: "'Inter', sans-serif",
+    fontSize: 15,
+    lineHeight: 1.65,
+    color: "#3A4250",
+    padding: "4px 0",
+    background: "transparent",
+  },
+  bodyBlockHeading1: {
+    width: "100%",
+    boxSizing: "border-box",
+    border: "none",
+    outline: "none",
+    resize: "none",
+    overflow: "hidden",
+    fontFamily: "'Inter', sans-serif",
+    fontSize: 22,
+    fontWeight: 700,
+    color: "#1B2430",
+    padding: "8px 0 2px",
+    background: "transparent",
+  },
+  bodyBlockHeading2: {
+    width: "100%",
+    boxSizing: "border-box",
+    border: "none",
+    outline: "none",
+    resize: "none",
+    overflow: "hidden",
+    fontFamily: "'Inter', sans-serif",
+    fontSize: 18,
+    fontWeight: 700,
+    color: "#1B2430",
+    padding: "6px 0 2px",
+    background: "transparent",
+  },
+  slashMenu: {
+    position: "absolute",
+    top: "100%",
+    left: 0,
+    marginTop: 2,
+    background: "#FFFFFF",
+    border: "1px solid #D3D8E2",
+    borderRadius: 8,
+    boxShadow: "0 6px 20px rgba(27,36,48,0.12)",
+    padding: 4,
+    zIndex: 30,
+    display: "flex",
+    flexDirection: "column",
+    minWidth: 140,
+  },
+  slashMenuItem: {
+    textAlign: "left",
+    padding: "8px 10px",
+    fontSize: 13,
+    fontWeight: 500,
+    color: "#3A4250",
+    background: "transparent",
+    border: "none",
+    borderRadius: 6,
+    cursor: "pointer",
+  },
+  viewHeading1: {
+    fontSize: 22,
+    fontWeight: 700,
+    color: "#1B2430",
+    margin: "14px 0 6px",
+  },
+  viewHeading2: {
+    fontSize: 18,
+    fontWeight: 700,
+    color: "#1B2430",
+    margin: "12px 0 4px",
+  },
+  viewParagraph: {
+    fontSize: 15,
+    lineHeight: 1.65,
+    color: "#3A4250",
+    whiteSpace: "pre-wrap",
+    margin: "0 0 10px",
+  },
 };
 
 // One-time keyframes for the pane slide/fade transition, injected globally.
@@ -497,6 +586,31 @@ function findNode(nodes, id) {
     }
   }
   return null;
+}
+
+function makeId() {
+  return `b-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+}
+
+function parseBody(raw) {
+  if (!raw) return [{ id: makeId(), type: "text", content: "" }];
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+  } catch {
+    // not JSON — treat as a legacy plain-text body
+  }
+  return [{ id: makeId(), type: "text", content: raw }];
+}
+
+function serializeBody(blocks) {
+  return JSON.stringify(blocks);
+}
+
+function bodyPreviewText(raw) {
+  return parseBody(raw)
+    .map((b) => b.content)
+    .join("\n");
 }
 
 function updateNodeInTree(nodes, id, updates) {
@@ -608,6 +722,89 @@ function BlockRow({
   );
 }
 
+function BodyBlockRow({
+  block,
+  autoFocus,
+  onChange,
+  onEnter,
+  onTypeChange,
+  onBackspaceEmpty,
+  onFocused,
+}) {
+  const ref = useRef(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  useEffect(() => {
+    if (ref.current) {
+      ref.current.style.height = "auto";
+      ref.current.style.height = `${ref.current.scrollHeight}px`;
+    }
+  }, [block.content]);
+
+  useEffect(() => {
+    if (autoFocus && ref.current) {
+      ref.current.focus();
+      const len = ref.current.value.length;
+      ref.current.setSelectionRange(len, len);
+      onFocused();
+    }
+  }, [autoFocus]);
+
+  useEffect(() => {
+    setMenuOpen(block.content === "/");
+  }, [block.content]);
+
+  const style =
+    block.type === "heading1"
+      ? styles.bodyBlockHeading1
+      : block.type === "heading2"
+        ? styles.bodyBlockHeading2
+        : styles.bodyBlockText;
+
+  return (
+    <div style={styles.bodyBlockWrap}>
+      <textarea
+        ref={ref}
+        style={style}
+        value={block.content}
+        onChange={(e) => onChange(block.id, e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && !e.shiftKey) {
+            e.preventDefault();
+            onEnter(block.id);
+          } else if (e.key === "Backspace" && block.content === "") {
+            e.preventDefault();
+            onBackspaceEmpty(block.id);
+          }
+        }}
+        placeholder={
+          block.type === "text" ? "Type '/' for commands, or just write" : ""
+        }
+      />
+      {menuOpen && (
+        <div style={styles.slashMenu}>
+          {[
+            { label: "Text", type: "text" },
+            { label: "Heading 1", type: "heading1" },
+            { label: "Heading 2", type: "heading2" },
+          ].map((opt) => (
+            <button
+              key={opt.type}
+              style={styles.slashMenuItem}
+              onClick={() => {
+                onTypeChange(block.id, opt.type);
+                setMenuOpen(false);
+              }}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function KebabMenu({ actions }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
@@ -711,7 +908,8 @@ export default function BlockPlatform() {
   const [error, setError] = useState(null);
 
   const [titleDraft, setTitleDraft] = useState("");
-  const [bodyDraft, setBodyDraft] = useState("");
+  const [bodyBlocksDraft, setBodyBlocksDraft] = useState(() => parseBody(""));
+  const [focusBlockId, setFocusBlockId] = useState(null);
   const [isEditingActive, setIsEditingActive] = useState(false);
   const [isExpanded, setIsExpanded] = useState(true);
   const [isClosing, setIsClosing] = useState(false);
@@ -723,7 +921,6 @@ export default function BlockPlatform() {
       return [];
     }
   });
-  const bodyRef = useRef(null);
   const titleRef = useRef(null);
 
   const activeId = path.length > 0 ? path[path.length - 1] : null;
@@ -764,7 +961,7 @@ export default function BlockPlatform() {
   useEffect(() => {
     if (activeBlock) {
       setTitleDraft(activeBlock.title);
-      setBodyDraft(activeBlock.body || "");
+      setBodyBlocksDraft(parseBody(activeBlock.body || ""));
     }
   }, [
     activeBlock && activeBlock.id,
@@ -783,13 +980,6 @@ export default function BlockPlatform() {
   useEffect(() => {
     if (isEditingActive && titleRef.current) titleRef.current.focus();
   }, [isEditingActive]);
-
-  useEffect(() => {
-    if (bodyRef.current) {
-      bodyRef.current.style.height = "auto";
-      bodyRef.current.style.height = `${bodyRef.current.scrollHeight}px`;
-    }
-  }, [bodyDraft, activeId, isEditingActive]);
 
   useEffect(() => {
     if (activeBlock && activeBlock.title === "" && titleRef.current) {
@@ -882,6 +1072,12 @@ export default function BlockPlatform() {
     }
   };
 
+  const cleanedBlocks = bodyBlocksDraft.filter((b) => b.content.trim() !== "");
+  const finalBlocks =
+    cleanedBlocks.length > 0
+      ? cleanedBlocks
+      : [{ id: makeId(), type: "text", content: "" }];
+
   // ---- Edit (active block) ----
   const handleSaveActive = async () => {
     if (!activeBlock) return;
@@ -890,9 +1086,11 @@ export default function BlockPlatform() {
       const res = await fetch(`${API_BASE}/api/blocks/${activeBlock.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
+
+        // ...then, inside the fetch call:
         body: JSON.stringify({
           title: titleDraft.trim(),
-          body: bodyDraft.trim(),
+          body: serializeBody(finalBlocks),
         }),
       });
       if (!res.ok) throw new Error(`Server responded ${res.status}`);
@@ -911,10 +1109,41 @@ export default function BlockPlatform() {
     }
   };
 
+  const handleBodyChange = (id, content) => {
+    setBodyBlocksDraft((prev) =>
+      prev.map((b) => (b.id === id ? { ...b, content } : b)),
+    );
+  };
+
+  const handleBodyEnter = (id) => {
+    setBodyBlocksDraft((prev) => {
+      const idx = prev.findIndex((b) => b.id === id);
+      const newBlock = { id: makeId(), type: "text", content: "" };
+      setFocusBlockId(newBlock.id);
+      return [...prev.slice(0, idx + 1), newBlock, ...prev.slice(idx + 1)];
+    });
+  };
+
+  const handleBodyTypeChange = (id, type) => {
+    setBodyBlocksDraft((prev) =>
+      prev.map((b) => (b.id === id ? { ...b, type, content: "" } : b)),
+    );
+  };
+
+  const handleBodyBackspaceEmpty = (id) => {
+    setBodyBlocksDraft((prev) => {
+      const idx = prev.findIndex((b) => b.id === id);
+      if (idx <= 0) return prev;
+      const prevBlock = prev[idx - 1];
+      setFocusBlockId(prevBlock.id);
+      return prev.filter((b) => b.id !== id);
+    });
+  };
+
   const handleCancelActiveEdit = () => {
     if (activeBlock) {
       setTitleDraft(activeBlock.title);
-      setBodyDraft(activeBlock.body || "");
+      setBodyBlocksDraft(parseBody(activeBlock.body || ""));
       setIsEditingActive(false);
     }
   };
@@ -1047,7 +1276,9 @@ export default function BlockPlatform() {
                   {parentBlock.title || "Untitled"}
                 </div>
                 {parentBlock.body && (
-                  <div style={styles.parentCardBody}>{parentBlock.body}</div>
+                  <div style={styles.parentCardBody}>
+                    {bodyPreviewText(parentBlock.body)}
+                  </div>
                 )}
               </div>
             )}
@@ -1129,13 +1360,20 @@ export default function BlockPlatform() {
                       <div style={{ overflow: "hidden" }}>
                         {isEditingActive ? (
                           <>
-                            <textarea
-                              ref={bodyRef}
-                              style={styles.activeBodyTextarea}
-                              value={bodyDraft}
-                              onChange={(e) => setBodyDraft(e.target.value)}
-                              placeholder="Write the details here"
-                            />
+                            <div style={styles.bodyBlocksWrap}>
+                              {bodyBlocksDraft.map((b) => (
+                                <BodyBlockRow
+                                  key={b.id}
+                                  block={b}
+                                  autoFocus={focusBlockId === b.id}
+                                  onFocused={() => setFocusBlockId(null)}
+                                  onChange={handleBodyChange}
+                                  onEnter={handleBodyEnter}
+                                  onTypeChange={handleBodyTypeChange}
+                                  onBackspaceEmpty={handleBodyBackspaceEmpty}
+                                />
+                              ))}
+                            </div>
                             <div style={styles.saveBar}>
                               <button
                                 style={styles.btnGhost}
@@ -1153,19 +1391,41 @@ export default function BlockPlatform() {
                             </div>
                           </>
                         ) : (
-                          <div style={styles.viewBody}>
-                            {activeBlock.body ? (
-                              activeBlock.body
-                            ) : (
-                              <span
-                                style={{
-                                  color: "#AEB4BF",
-                                  fontStyle: "italic",
-                                }}
-                              >
-                                No content yet.
-                              </span>
-                            )}
+                          <div>
+                            {(() => {
+                              const blocks = parseBody(activeBlock.body);
+                              const hasContent = blocks.some(
+                                (b) => b.content.trim() !== "",
+                              );
+                              if (!hasContent) {
+                                return (
+                                  <span
+                                    style={{
+                                      color: "#AEB4BF",
+                                      fontStyle: "italic",
+                                    }}
+                                  >
+                                    No content yet.
+                                  </span>
+                                );
+                              }
+                              return blocks.map((b) =>
+                                b.content.trim() === "" ? null : (
+                                  <div
+                                    key={b.id}
+                                    style={
+                                      b.type === "heading1"
+                                        ? styles.viewHeading1
+                                        : b.type === "heading2"
+                                          ? styles.viewHeading2
+                                          : styles.viewParagraph
+                                    }
+                                  >
+                                    {b.content}
+                                  </div>
+                                ),
+                              );
+                            })()}
                           </div>
                         )}
 
