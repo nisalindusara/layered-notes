@@ -1,5 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 
+import { BlockMath } from "react-katex";
+
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:4000";
 
 const FONTFAMILY = "'Google Sans', sans-serif";
@@ -557,6 +559,27 @@ const styles = {
     whiteSpace: "pre-wrap",
     margin: "0 0 10px",
   },
+  bodyBlockEquationInput: {
+    width: "100%",
+    boxSizing: "border-box",
+    border: "1px dashed #C7CCD6",
+    borderRadius: 6,
+    outline: "none",
+    fontFamily: "'IBM Plex Mono', monospace",
+    fontSize: 14,
+    color: "#3A4250",
+    padding: "8px 10px",
+    background: "#FAFBFC",
+  },
+  bodyBlockEquationRendered: {
+    padding: "10px 12px",
+    borderRadius: 6,
+    cursor: "pointer",
+    border: "1px solid transparent",
+  },
+  equationPlaceholder: { color: "#AEB4BF", fontStyle: "italic", fontSize: 14 },
+  equationError: { color: "#B0483C", fontSize: 13, fontStyle: "italic" },
+  viewEquationWrap: { padding: "6px 0", margin: "6px 0" },
 };
 
 // One-time keyframes for the pane slide/fade transition, injected globally.
@@ -734,6 +757,20 @@ function BodyBlockRow({
   const ref = useRef(null);
   const [menuOpen, setMenuOpen] = useState(false);
 
+  const [equationEditing, setEquationEditing] = useState(block.content === "");
+
+  useEffect(() => {
+    if (block.type === "equation" && block.content === "") {
+      setEquationEditing(true);
+    }
+  }, [block.type]);
+
+  useEffect(() => {
+    if (block.type === "equation" && equationEditing && ref.current) {
+      ref.current.focus();
+    }
+  }, [equationEditing, block.type]);
+
   useEffect(() => {
     if (ref.current) {
       ref.current.style.height = "auto";
@@ -751,8 +788,8 @@ function BodyBlockRow({
   }, [autoFocus]);
 
   useEffect(() => {
-    setMenuOpen(block.content === "/");
-  }, [block.content]);
+    setMenuOpen(block.type !== "equation" && block.content === "/");
+  }, [block.content, block.type]);
 
   const style =
     block.type === "heading1"
@@ -760,6 +797,52 @@ function BodyBlockRow({
       : block.type === "heading2"
         ? styles.bodyBlockHeading2
         : styles.bodyBlockText;
+
+  if (block.type === "equation") {
+    if (equationEditing) {
+      return (
+        <div style={styles.bodyBlockWrap}>
+          <input
+            ref={ref}
+            style={styles.bodyBlockEquationInput}
+            value={block.content}
+            onChange={(e) => onChange(block.id, e.target.value)}
+            onBlur={() => setEquationEditing(false)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                setEquationEditing(false);
+                onEnter(block.id);
+              } else if (e.key === "Backspace" && block.content === "") {
+                e.preventDefault();
+                onBackspaceEmpty(block.id);
+              }
+            }}
+            placeholder="Type LaTeX, e.g. x^2 + y^2 = z^2"
+          />
+        </div>
+      );
+    }
+    return (
+      <div
+        style={styles.bodyBlockEquationRendered}
+        onClick={() => setEquationEditing(true)}
+      >
+        {block.content.trim() === "" ? (
+          <span style={styles.equationPlaceholder}>
+            Click to enter an equation
+          </span>
+        ) : (
+          <BlockMath
+            math={block.content}
+            renderError={() => (
+              <span style={styles.equationError}>Invalid equation</span>
+            )}
+          />
+        )}
+      </div>
+    );
+  }
 
   return (
     <div style={styles.bodyBlockWrap}>
@@ -787,6 +870,7 @@ function BodyBlockRow({
             { label: "Text", type: "text" },
             { label: "Heading 1", type: "heading1" },
             { label: "Heading 2", type: "heading2" },
+            { label: "Equation", type: "equation" },
           ].map((opt) => (
             <button
               key={opt.type}
@@ -854,20 +938,50 @@ function KebabMenu({ actions }) {
   );
 }
 
-function DraftCard({ draft, onChange, onSave, onCancel, saving }) {
+function DraftCard({
+  draft,
+  onTitleChange,
+  onBodyUpdate,
+  onSave,
+  onCancel,
+  saving,
+}) {
   const titleRef = useRef(null);
-  const bodyRef = useRef(null);
+  const [focusBlockId, setFocusBlockId] = useState(null);
 
   useEffect(() => {
     titleRef.current && titleRef.current.focus();
   }, []);
 
-  useEffect(() => {
-    if (bodyRef.current) {
-      bodyRef.current.style.height = "auto";
-      bodyRef.current.style.height = `${bodyRef.current.scrollHeight}px`;
-    }
-  }, [draft.body]);
+  const handleBodyChange = (id, content) => {
+    onBodyUpdate((prev) =>
+      prev.map((b) => (b.id === id ? { ...b, content } : b)),
+    );
+  };
+
+  const handleBodyEnter = (id) => {
+    onBodyUpdate((prev) => {
+      const idx = prev.findIndex((b) => b.id === id);
+      const newBlock = { id: makeId(), type: "text", content: "" };
+      setFocusBlockId(newBlock.id);
+      return [...prev.slice(0, idx + 1), newBlock, ...prev.slice(idx + 1)];
+    });
+  };
+
+  const handleBodyTypeChange = (id, type) => {
+    onBodyUpdate((prev) =>
+      prev.map((b) => (b.id === id ? { ...b, type, content: "" } : b)),
+    );
+  };
+
+  const handleBodyBackspaceEmpty = (id) => {
+    onBodyUpdate((prev) => {
+      const idx = prev.findIndex((b) => b.id === id);
+      if (idx <= 0) return prev;
+      setFocusBlockId(prev[idx - 1].id);
+      return prev.filter((b) => b.id !== id);
+    });
+  };
 
   return (
     <div style={styles.draftCard}>
@@ -876,16 +990,23 @@ function DraftCard({ draft, onChange, onSave, onCancel, saving }) {
         ref={titleRef}
         style={styles.draftTitleInput}
         value={draft.title}
-        onChange={(e) => onChange({ title: e.target.value })}
+        onChange={(e) => onTitleChange(e.target.value)}
         placeholder="Untitled"
       />
-      <textarea
-        ref={bodyRef}
-        style={styles.draftBodyTextarea}
-        value={draft.body}
-        onChange={(e) => onChange({ body: e.target.value })}
-        placeholder="Write the details here"
-      />
+      <div style={styles.bodyBlocksWrap}>
+        {draft.body.map((b) => (
+          <BodyBlockRow
+            key={b.id}
+            block={b}
+            autoFocus={focusBlockId === b.id}
+            onFocused={() => setFocusBlockId(null)}
+            onChange={handleBodyChange}
+            onEnter={handleBodyEnter}
+            onTypeChange={handleBodyTypeChange}
+            onBackspaceEmpty={handleBodyBackspaceEmpty}
+          />
+        ))}
+      </div>
       <div style={styles.draftActions}>
         <button style={styles.btnGhost} onClick={onCancel}>
           Cancel
@@ -1026,7 +1147,7 @@ export default function BlockPlatform() {
         id: `draft-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
         parentId,
         title: "",
-        body: "",
+        body: parseBody(""),
       },
     ]);
   };
@@ -1034,6 +1155,12 @@ export default function BlockPlatform() {
   const updateDraft = (id, changes) => {
     setDrafts((prev) =>
       prev.map((d) => (d.id === id ? { ...d, ...changes } : d)),
+    );
+  };
+
+  const updateDraftBody = (draftId, updater) => {
+    setDrafts((prev) =>
+      prev.map((d) => (d.id === draftId ? { ...d, body: updater(d.body) } : d)),
     );
   };
 
@@ -1045,10 +1172,17 @@ export default function BlockPlatform() {
     const draft = drafts.find((d) => d.id === id);
     if (!draft) return;
 
-    if (!draft.title.trim() && !draft.body.trim()) {
+    const cleanedBlocks = draft.body.filter((b) => b.content.trim() !== "");
+    const hasBody = cleanedBlocks.length > 0;
+
+    if (!draft.title.trim() && !hasBody) {
       cancelDraft(id); // nothing typed — discard silently, no block created
       return;
     }
+
+    const finalBlocks = hasBody
+      ? cleanedBlocks
+      : [{ id: makeId(), type: "text", content: "" }];
 
     setSaving(true);
     try {
@@ -1057,7 +1191,7 @@ export default function BlockPlatform() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title: draft.title,
-          body: draft.body,
+          body: serializeBody(finalBlocks),
           parentId: draft.parentId,
         }),
       });
@@ -1247,7 +1381,8 @@ export default function BlockPlatform() {
                 <DraftCard
                   key={draft.id}
                   draft={draft}
-                  onChange={(c) => updateDraft(draft.id, c)}
+                  onTitleChange={(title) => updateDraft(draft.id, { title })}
+                  onBodyUpdate={(updater) => updateDraftBody(draft.id, updater)}
                   onSave={() => saveDraft(draft.id)}
                   onCancel={() => cancelDraft(draft.id)}
                   saving={saving}
@@ -1409,22 +1544,37 @@ export default function BlockPlatform() {
                                   </span>
                                 );
                               }
-                              return blocks.map((b) =>
-                                b.content.trim() === "" ? null : (
-                                  <div
-                                    key={b.id}
-                                    style={
-                                      b.type === "heading1"
-                                        ? styles.viewHeading1
-                                        : b.type === "heading2"
-                                          ? styles.viewHeading2
-                                          : styles.viewParagraph
-                                    }
-                                  >
+                              return blocks.map((b) => {
+                                if (b.content.trim() === "") return null;
+                                if (b.type === "equation") {
+                                  return (
+                                    <div
+                                      key={b.id}
+                                      style={styles.viewEquationWrap}
+                                    >
+                                      <BlockMath
+                                        math={b.content}
+                                        renderError={() => (
+                                          <span style={styles.equationError}>
+                                            Invalid equation
+                                          </span>
+                                        )}
+                                      />
+                                    </div>
+                                  );
+                                }
+                                const style =
+                                  b.type === "heading1"
+                                    ? styles.viewHeading1
+                                    : b.type === "heading2"
+                                      ? styles.viewHeading2
+                                      : styles.viewParagraph;
+                                return (
+                                  <div key={b.id} style={style}>
                                     {b.content}
                                   </div>
-                                ),
-                              );
+                                );
+                              });
                             })()}
                           </div>
                         )}
@@ -1455,7 +1605,12 @@ export default function BlockPlatform() {
                             <DraftCard
                               key={draft.id}
                               draft={draft}
-                              onChange={(c) => updateDraft(draft.id, c)}
+                              onTitleChange={(title) =>
+                                updateDraft(draft.id, { title })
+                              }
+                              onBodyUpdate={(updater) =>
+                                updateDraftBody(draft.id, updater)
+                              }
                               onSave={() => saveDraft(draft.id)}
                               onCancel={() => cancelDraft(draft.id)}
                               saving={saving}
@@ -1498,7 +1653,10 @@ export default function BlockPlatform() {
                   <DraftCard
                     key={draft.id}
                     draft={draft}
-                    onChange={(c) => updateDraft(draft.id, c)}
+                    onTitleChange={(title) => updateDraft(draft.id, { title })}
+                    onBodyUpdate={(updater) =>
+                      updateDraftBody(draft.id, updater)
+                    }
                     onSave={() => saveDraft(draft.id)}
                     onCancel={() => cancelDraft(draft.id)}
                     saving={saving}
