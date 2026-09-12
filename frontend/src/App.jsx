@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 
-import { BlockMath } from "react-katex";
+import { BlockMath, InlineMath } from "react-katex";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:4000";
 
@@ -636,6 +636,83 @@ function bodyPreviewText(raw) {
     .join("\n");
 }
 
+function renderMathText(text) {
+  const parts = [];
+  const regex = /\\\[(.+?)\\\]|\\\((.+?)\\\)/gs;
+  let lastIndex = 0;
+  let match;
+  let key = 0;
+  while ((match = regex.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push(<span key={key++}>{text.slice(lastIndex, match.index)}</span>);
+    }
+    if (match[1] !== undefined) {
+      parts.push(
+        <BlockMath
+          key={key++}
+          math={match[1]}
+          renderError={() => (
+            <span style={styles.equationError}>Invalid equation</span>
+          )}
+        />,
+      );
+    } else {
+      parts.push(
+        <InlineMath
+          key={key++}
+          math={match[2]}
+          renderError={() => (
+            <span style={styles.equationError}>Invalid equation</span>
+          )}
+        />,
+      );
+    }
+    lastIndex = regex.lastIndex;
+  }
+  if (lastIndex < text.length) {
+    parts.push(<span key={key++}>{text.slice(lastIndex)}</span>);
+  }
+  return parts;
+}
+
+function renderBodyBlocks(raw) {
+  const blocks = parseBody(raw);
+  const hasContent = blocks.some((b) => b.content.trim() !== "");
+  if (!hasContent) {
+    return (
+      <span style={{ color: "#AEB4BF", fontStyle: "italic" }}>
+        No content yet.
+      </span>
+    );
+  }
+  return blocks.map((b) => {
+    if (b.content.trim() === "") return null;
+    if (b.type === "equation") {
+      return (
+        <div key={b.id} style={styles.viewEquationWrap}>
+          <BlockMath
+            math={b.content}
+            renderError={() => (
+              <span style={styles.equationError}>Invalid equation</span>
+            )}
+          />
+        </div>
+      );
+    }
+    const style =
+      b.type === "heading1"
+        ? styles.viewHeading1
+        : b.type === "heading2"
+          ? styles.viewHeading2
+          : styles.viewParagraph;
+    return (
+      <div key={b.id} style={style}>
+        {b.type === "text" ? renderMathText(b.content) : b.content}
+      </div>
+    );
+  });
+}
+
 function updateNodeInTree(nodes, id, updates) {
   return nodes.map((n) => {
     if (n.id === id) return { ...n, ...updates };
@@ -1037,7 +1114,12 @@ export default function BlockPlatform() {
   const [drafts, setDrafts] = useState(() => {
     try {
       const raw = localStorage.getItem("block-drafts");
-      return raw ? JSON.parse(raw) : [];
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      return parsed.map((d) => ({
+        ...d,
+        body: Array.isArray(d.body) ? d.body : parseBody(d.body || ""),
+      }));
     } catch {
       return [];
     }
@@ -1412,7 +1494,7 @@ export default function BlockPlatform() {
                 </div>
                 {parentBlock.body && (
                   <div style={styles.parentCardBody}>
-                    {bodyPreviewText(parentBlock.body)}
+                    {renderBodyBlocks(parentBlock.body)}
                   </div>
                 )}
               </div>
@@ -1526,57 +1608,7 @@ export default function BlockPlatform() {
                             </div>
                           </>
                         ) : (
-                          <div>
-                            {(() => {
-                              const blocks = parseBody(activeBlock.body);
-                              const hasContent = blocks.some(
-                                (b) => b.content.trim() !== "",
-                              );
-                              if (!hasContent) {
-                                return (
-                                  <span
-                                    style={{
-                                      color: "#AEB4BF",
-                                      fontStyle: "italic",
-                                    }}
-                                  >
-                                    No content yet.
-                                  </span>
-                                );
-                              }
-                              return blocks.map((b) => {
-                                if (b.content.trim() === "") return null;
-                                if (b.type === "equation") {
-                                  return (
-                                    <div
-                                      key={b.id}
-                                      style={styles.viewEquationWrap}
-                                    >
-                                      <BlockMath
-                                        math={b.content}
-                                        renderError={() => (
-                                          <span style={styles.equationError}>
-                                            Invalid equation
-                                          </span>
-                                        )}
-                                      />
-                                    </div>
-                                  );
-                                }
-                                const style =
-                                  b.type === "heading1"
-                                    ? styles.viewHeading1
-                                    : b.type === "heading2"
-                                      ? styles.viewHeading2
-                                      : styles.viewParagraph;
-                                return (
-                                  <div key={b.id} style={style}>
-                                    {b.content}
-                                  </div>
-                                );
-                              });
-                            })()}
-                          </div>
+                          <div>{renderBodyBlocks(activeBlock.body)}</div>
                         )}
 
                         <div style={styles.divider} />
