@@ -303,6 +303,13 @@ app.delete("/api/blocks/:id", async (req, res) => {
 });
 
 const PORT = process.env.PORT || 4000;
-app.listen(PORT, () => {
-  console.log(`Block platform API listening on port ${PORT}`);
-});
+
+// Only start a real listening server when run directly (local dev,
+// or real hosting later). Vercel's adapter imports `app` instead.
+if (process.env.VERCEL !== "1") {
+  app.listen(PORT, () => {
+    console.log(`Block platform API listening on port ${PORT}`);
+  });
+}
+
+export default app;
