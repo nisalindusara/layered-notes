@@ -3,6 +3,12 @@ import cors from "cors";
 import dotenv from "dotenv";
 import { pool } from "./db.js";
 
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const frontendDistPath = path.join(__dirname, "..", "frontend", "dist");
+
 dotenv.config();
 
 const app = express();
@@ -302,10 +308,15 @@ app.delete("/api/blocks/:id", async (req, res) => {
   }
 });
 
+// Serve the built frontend, and fall back to it for any non-API route
+// so refreshing the page (or opening any path) still loads the app.
+app.use(express.static(frontendDistPath));
+app.get(/^(?!\/api).*/, (req, res) => {
+  res.sendFile(path.join(frontendDistPath, "index.html"));
+});
+
 const PORT = process.env.PORT || 4000;
 
-// Only start a real listening server when run directly (local dev,
-// or real hosting later). Vercel's adapter imports `app` instead.
 if (process.env.VERCEL !== "1") {
   app.listen(PORT, () => {
     console.log(`Block platform API listening on port ${PORT}`);
