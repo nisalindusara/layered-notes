@@ -1,0 +1,6 @@
+{
+  "name": "layered-notes",
+  "scripts": {
+    "start": "cd frontend && npm install && npm run build && cd ../backend && npm install && npm start"
+  }
+}
