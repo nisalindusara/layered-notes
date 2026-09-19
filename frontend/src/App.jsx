@@ -580,6 +580,67 @@ const styles = {
   equationPlaceholder: { color: "#AEB4BF", fontStyle: "italic", fontSize: 14 },
   equationError: { color: "#B0483C", fontSize: 13, fontStyle: "italic" },
   viewEquationWrap: { padding: "6px 0", margin: "6px 0" },
+  subjectsGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))",
+    gap: 14,
+  },
+  subjectCard: {
+    background: "#FFFFFF",
+    border: "1px solid #D3D8E2",
+    borderRadius: 10,
+    padding: "28px 16px",
+    textAlign: "center",
+    cursor: "pointer",
+    fontSize: 15,
+    fontWeight: 600,
+    color: "#1B2430",
+  },
+  topicsList: { display: "flex", flexDirection: "column", gap: 8 },
+  topicRow: {
+    background: "#FFFFFF",
+    border: "1px solid #D3D8E2",
+    borderRadius: 8,
+    padding: "14px 16px",
+    cursor: "pointer",
+    fontSize: 15,
+    fontWeight: 500,
+    color: "#1B2430",
+  },
+  inlineCreateRow: { display: "flex", gap: 8, marginTop: 16 },
+  inlineCreateInput: {
+    flex: 1,
+    padding: "10px 12px",
+    fontSize: 14,
+    fontFamily: "'Inter', sans-serif",
+    border: "1px solid #D3D8E2",
+    borderRadius: 6,
+    outline: "none",
+  },
+  inlineCreateButton: {
+    padding: "10px 18px",
+    fontSize: 14,
+    fontWeight: 600,
+    background: "#1B2430",
+    border: "1px solid #1B2430",
+    color: "#FFFFFF",
+    borderRadius: 6,
+    cursor: "pointer",
+  },
+  backLink: {
+    background: "none",
+    border: "none",
+    color: "#7B8492",
+    fontSize: 13,
+    cursor: "pointer",
+    padding: 0,
+    marginBottom: 16,
+  },
+  topNavCrumb: {
+    fontSize: 13,
+    color: "#7B8492",
+    marginBottom: 8,
+  },
 };
 
 // One-time keyframes for the pane slide/fade transition, injected globally.
@@ -1104,7 +1165,13 @@ export default function BlockPlatform() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
-
+  const [view, setView] = useState("subjects"); // "subjects" | "topics" | "blocks"
+  const [subjects, setSubjects] = useState([]);
+  const [topics, setTopics] = useState([]);
+  const [selectedSubjectId, setSelectedSubjectId] = useState(null);
+  const [selectedTopicId, setSelectedTopicId] = useState(null);
+  const [newSubjectName, setNewSubjectName] = useState("");
+  const [newTopicName, setNewTopicName] = useState("");
   const [titleDraft, setTitleDraft] = useState("");
   const [bodyBlocksDraft, setBodyBlocksDraft] = useState(() => parseBody(""));
   const [focusBlockId, setFocusBlockId] = useState(null);
@@ -1139,9 +1206,10 @@ export default function BlockPlatform() {
         : findNode(tree, path[path.length - 2])?.children || [];
 
   const loadTree = () => {
+    if (!selectedTopicId) return;
     setLoading(true);
     setError(null);
-    fetch(`${API_BASE}/api/blocks`)
+    fetch(`${API_BASE}/api/blocks?topicId=${selectedTopicId}`)
       .then((res) => {
         if (!res.ok) throw new Error(`Server responded ${res.status}`);
         return res.json();
@@ -1156,8 +1224,23 @@ export default function BlockPlatform() {
   };
 
   useEffect(() => {
-    loadTree();
+    fetch(`${API_BASE}/api/subjects`)
+      .then((res) => res.json())
+      .then(setSubjects)
+      .catch((err) => setError(`Couldn't load subjects: ${err.message}`));
   }, []);
+
+  useEffect(() => {
+    if (!selectedSubjectId) return;
+    fetch(`${API_BASE}/api/subjects/${selectedSubjectId}/topics`)
+      .then((res) => res.json())
+      .then(setTopics)
+      .catch((err) => setError(`Couldn't load topics: ${err.message}`));
+  }, [selectedSubjectId]);
+
+  useEffect(() => {
+    if (selectedTopicId) loadTree();
+  }, [selectedTopicId]);
 
   // Keep the edit drafts in sync whenever the active block changes
   // (drilling in/out, switching sideways, or after a save/refetch).
@@ -1275,6 +1358,7 @@ export default function BlockPlatform() {
           title: draft.title,
           body: serializeBody(finalBlocks),
           parentId: draft.parentId,
+          topicId: selectedTopicId,
         }),
       });
       if (!res.ok) throw new Error(`Server responded ${res.status}`);
@@ -1379,6 +1463,65 @@ export default function BlockPlatform() {
     }
   };
 
+  const handleCreateSubject = async () => {
+    if (!newSubjectName.trim()) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/subjects`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newSubjectName.trim() }),
+      });
+      const newSubject = await res.json();
+      setSubjects((prev) => [...prev, newSubject]);
+      setNewSubjectName("");
+    } catch (err) {
+      setError(`Couldn't create subject: ${err.message}`);
+    }
+  };
+
+  const handleCreateTopic = async () => {
+    if (!newTopicName.trim()) return;
+    try {
+      const res = await fetch(
+        `${API_BASE}/api/subjects/${selectedSubjectId}/topics`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: newTopicName.trim() }),
+        },
+      );
+      const newTopic = await res.json();
+      setTopics((prev) => [...prev, newTopic]);
+      setNewTopicName("");
+    } catch (err) {
+      setError(`Couldn't create topic: ${err.message}`);
+    }
+  };
+
+  const enterTopic = (subjectId, topicId) => {
+    setSelectedSubjectId(subjectId);
+    setSelectedTopicId(topicId);
+    setPath([]);
+    setTree([]);
+    setView("blocks");
+  };
+
+  const backToSubjects = () => {
+    setView("subjects");
+    setSelectedSubjectId(null);
+    setSelectedTopicId(null);
+    setTopics([]);
+    setPath([]);
+    setTree([]);
+  };
+
+  const backToTopics = () => {
+    setView("topics");
+    setSelectedTopicId(null);
+    setPath([]);
+    setTree([]);
+  };
+
   // ---- Delete ----
   const handleDeleteConfirmed = async () => {
     setDeleting(true);
@@ -1402,10 +1545,107 @@ export default function BlockPlatform() {
     ...path.map((id) => ({ label: findNode(tree, id)?.title || "Untitled" })),
   ];
 
+  if (view === "subjects") {
+    return (
+      <div style={styles.page}>
+        <div style={styles.container}>
+          <div style={styles.header}>
+            <div style={styles.eyebrow}>Block Platform</div>
+            <h1 style={styles.title}>Subjects</h1>
+          </div>
+          <div style={styles.subjectsGrid}>
+            {subjects.map((s) => (
+              <div
+                key={s.id}
+                style={styles.subjectCard}
+                onClick={() => {
+                  setSelectedSubjectId(s.id);
+                  setView("topics");
+                }}
+              >
+                {s.name}
+              </div>
+            ))}
+          </div>
+          <div style={styles.inlineCreateRow}>
+            <input
+              style={styles.inlineCreateInput}
+              value={newSubjectName}
+              onChange={(e) => setNewSubjectName(e.target.value)}
+              placeholder="New subject name"
+              onKeyDown={(e) => e.key === "Enter" && handleCreateSubject()}
+            />
+            <button
+              style={styles.inlineCreateButton}
+              onClick={handleCreateSubject}
+            >
+              Add
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (view === "topics") {
+    const currentSubject = subjects.find((s) => s.id === selectedSubjectId);
+    return (
+      <div style={styles.page}>
+        <div style={styles.container}>
+          <button style={styles.backLink} onClick={backToSubjects}>
+            ← Subjects
+          </button>
+          <div style={styles.header}>
+            <div style={styles.eyebrow}>Block Platform</div>
+            <h1 style={styles.title}>{currentSubject?.name || "Topics"}</h1>
+          </div>
+          <div style={styles.topicsList}>
+            {topics.map((t) => (
+              <div
+                key={t.id}
+                style={styles.topicRow}
+                onClick={() => enterTopic(selectedSubjectId, t.id)}
+              >
+                {t.name}
+              </div>
+            ))}
+          </div>
+          <div style={styles.inlineCreateRow}>
+            <input
+              style={styles.inlineCreateInput}
+              value={newTopicName}
+              onChange={(e) => setNewTopicName(e.target.value)}
+              placeholder="New topic name"
+              onKeyDown={(e) => e.key === "Enter" && handleCreateTopic()}
+            />
+            <button
+              style={styles.inlineCreateButton}
+              onClick={handleCreateTopic}
+            >
+              Add
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const currentSubject = subjects.find((s) => s.id === selectedSubjectId);
+  const currentTopic = topics.find((t) => t.id === selectedTopicId);
+
   return (
     <div style={styles.page}>
       <AnimationStyles />
       <div style={styles.container}>
+        <div style={styles.topNavCrumb}>
+          <button style={styles.backLink} onClick={backToSubjects}>
+            {currentSubject?.name || "Subject"}
+          </button>
+          {" › "}
+          <button style={styles.backLink} onClick={backToTopics}>
+            {currentTopic?.name || "Topic"}
+          </button>
+        </div>
         <div style={styles.header}>
           <div style={styles.eyebrow}>Block Platform</div>
           <h1 style={styles.title}>Entries</h1>
