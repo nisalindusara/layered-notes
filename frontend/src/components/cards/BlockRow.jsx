@@ -2,8 +2,8 @@ import React, { useState, useRef, useEffect } from "react";
 import { BlockMath } from "react-katex";
 
 const styles = {
-  bodyBlockWrap: { position: "relative" },
-  bodyBlockText: {
+  blockWrap: { position: "relative" },
+  blockText: {
     width: "100%",
     boxSizing: "border-box",
     border: "none",
@@ -17,7 +17,7 @@ const styles = {
     padding: "4px 0",
     background: "transparent",
   },
-  bodyBlockHeading1: {
+  blockHeading1: {
     width: "100%",
     boxSizing: "border-box",
     border: "none",
@@ -31,7 +31,7 @@ const styles = {
     padding: "8px 0 2px",
     background: "transparent",
   },
-  bodyBlockHeading2: {
+  blockHeading2: {
     width: "100%",
     boxSizing: "border-box",
     border: "none",
@@ -71,7 +71,7 @@ const styles = {
     borderRadius: 6,
     cursor: "pointer",
   },
-  bodyBlockEquationInput: {
+  blockEquationInput: {
     width: "100%",
     boxSizing: "border-box",
     border: "1px dashed #C7CCD6",
@@ -83,7 +83,7 @@ const styles = {
     padding: "8px 10px",
     background: "#FAFBFC",
   },
-  bodyBlockEquationRendered: {
+  blockEquationRendered: {
     padding: "10px 12px",
     borderRadius: 6,
     cursor: "pointer",
@@ -93,7 +93,7 @@ const styles = {
   equationError: { color: "#B0483C", fontSize: 13, fontStyle: "italic" },
 };
 
-export default function BodyBlockRow({
+export default function BlockRow({
   block,
   autoFocus,
   onChange,
@@ -138,18 +138,18 @@ export default function BodyBlockRow({
 
   const style =
     block.type === "heading1"
-      ? styles.bodyBlockHeading1
+      ? styles.blockHeading1
       : block.type === "heading2"
-        ? styles.bodyBlockHeading2
-        : styles.bodyBlockText;
+        ? styles.blockHeading2
+        : styles.blockText;
 
   if (block.type === "equation") {
     if (equationEditing) {
       return (
-        <div style={styles.bodyBlockWrap}>
+        <div style={styles.blockWrap}>
           <input
             ref={ref}
-            style={styles.bodyBlockEquationInput}
+            style={styles.blockEquationInput}
             value={block.content}
             onChange={(e) => onChange(block.id, e.target.value)}
             onBlur={() => setEquationEditing(false)}
@@ -170,7 +170,7 @@ export default function BodyBlockRow({
     }
     return (
       <div
-        style={styles.bodyBlockEquationRendered}
+        style={styles.blockEquationRendered}
         onClick={() => setEquationEditing(true)}
       >
         {block.content.trim() === "" ? (
@@ -190,7 +190,7 @@ export default function BodyBlockRow({
   }
 
   return (
-    <div style={styles.bodyBlockWrap}>
+    <div style={styles.blockWrap}>
       <textarea
         ref={ref}
         style={style}

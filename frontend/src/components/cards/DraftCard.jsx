@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import BodyBlockRow from "./BodyBlockRow";
+import BlockRow from "./BlockRow";
 import { makeId } from "../../utils/bodyHelpers";
 
 const styles = {
@@ -30,7 +30,7 @@ const styles = {
     marginBottom: 8,
     padding: "4px 0",
   },
-  bodyBlocksWrap: { display: "flex", flexDirection: "column", gap: 2 },
+  blocksWrap: { display: "flex", flexDirection: "column", gap: 2 },
   draftActions: {
     display: "flex",
     justifyContent: "flex-end",
@@ -114,9 +114,9 @@ export default function DraftCard({
         onChange={(e) => onTitleChange(e.target.value)}
         placeholder="Untitled"
       />
-      <div style={styles.bodyBlocksWrap}>
+      <div style={styles.blocksWrap}>
         {draft.body.map((b) => (
-          <BodyBlockRow
+          <BlockRow
             key={b.id}
             block={b}
             autoFocus={focusBlockId === b.id}

@@ -1,18 +1,18 @@
 import { useState, useEffect } from "react";
 import { findNode } from "../utils/treeHelpers";
-import { fetchBlocks, moveBlock, deleteBlock } from "../api/blocksApi";
+import { fetchCards, moveCard, deleteCard } from "../api/cardsApi";
 
-export function useBlockTree({ topicId, setError }) {
+export function useCardTree({ topicId, setError }) {
   const [tree, setTree] = useState([]);
   const [loading, setLoading] = useState(true);
   const [path, setPath] = useState([]);
-  const [deletingBlock, setDeletingBlock] = useState(null);
+  const [deletingCard, setDeletingCard] = useState(null);
   const [deleting, setDeleting] = useState(false);
 
   const activeId = path.length > 0 ? path[path.length - 1] : null;
-  const activeBlock = activeId !== null ? findNode(tree, activeId) : null;
+  const activeCard = activeId !== null ? findNode(tree, activeId) : null;
   const parentId = path.length >= 2 ? path[path.length - 2] : null;
-  const parentBlock = parentId !== null ? findNode(tree, parentId) : null;
+  const parentCard = parentId !== null ? findNode(tree, parentId) : null;
 
   const topPaneList =
     path.length === 0
@@ -25,7 +25,7 @@ export function useBlockTree({ topicId, setError }) {
     if (!topicId) return;
     setLoading(true);
     setError(null);
-    fetchBlocks(topicId)
+    fetchCards(topicId)
       .then((data) => setTree(data))
       .catch((err) =>
         setError(
@@ -52,22 +52,22 @@ export function useBlockTree({ topicId, setError }) {
 
   const handleMove = async (id, action) => {
     try {
-      await moveBlock(id, action);
+      await moveCard(id, action);
       loadTree();
     } catch (err) {
-      setError(`Couldn't move that block: ${err.message}`);
+      setError(`Couldn't move that card: ${err.message}`);
     }
   };
 
   const handleDeleteConfirmed = async () => {
     setDeleting(true);
     try {
-      await deleteBlock(deletingBlock.id);
-      if (deletingBlock.id === activeId) goUpOne();
-      setDeletingBlock(null);
+      await deleteCard(deletingCard.id);
+      if (deletingCard.id === activeId) goUpOne();
+      setDeletingCard(null);
       loadTree();
     } catch (err) {
-      setError(`Couldn't delete that block: ${err.message}`);
+      setError(`Couldn't delete that card: ${err.message}`);
     } finally {
       setDeleting(false);
     }
@@ -80,11 +80,11 @@ export function useBlockTree({ topicId, setError }) {
     path,
     setPath,
     activeId,
-    activeBlock,
-    parentBlock,
+    activeCard,
+    parentCard,
     topPaneList,
-    deletingBlock,
-    setDeletingBlock,
+    deletingCard,
+    setDeletingCard,
     deleting,
     loadTree,
     drillInto,

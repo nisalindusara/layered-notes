@@ -1,16 +1,16 @@
 import { useState, useEffect, useRef } from "react";
 import { parseBody, serializeBody, makeId } from "../utils/bodyHelpers";
 import { updateNodeInTree } from "../utils/treeHelpers";
-import { patchBlock } from "../api/blocksApi";
+import { patchCard } from "../api/cardsApi";
 
-export function useActiveBlockEditor({
+export function useActiveCardEditor({
   activeId,
-  activeBlock,
+  activeCard,
   setTree,
   setError,
 }) {
   const [titleDraft, setTitleDraft] = useState("");
-  const [bodyBlocksDraft, setBodyBlocksDraft] = useState(() => parseBody(""));
+  const [blocksDraft, setBlocksDraft] = useState(() => parseBody(""));
   const [focusBlockId, setFocusBlockId] = useState(null);
   const [isEditingActive, setIsEditingActive] = useState(false);
   const [isExpanded, setIsExpanded] = useState(true);
@@ -19,18 +19,18 @@ export function useActiveBlockEditor({
   const titleRef = useRef(null);
 
   useEffect(() => {
-    if (activeBlock) {
-      setTitleDraft(activeBlock.title);
-      setBodyBlocksDraft(parseBody(activeBlock.body || ""));
+    if (activeCard) {
+      setTitleDraft(activeCard.title);
+      setBlocksDraft(parseBody(activeCard.body || ""));
     }
   }, [
-    activeBlock && activeBlock.id,
-    activeBlock && activeBlock.title,
-    activeBlock && activeBlock.body,
+    activeCard && activeCard.id,
+    activeCard && activeCard.title,
+    activeCard && activeCard.body,
   ]);
 
   useEffect(() => {
-    setIsEditingActive(activeBlock ? activeBlock.title === "" : false);
+    setIsEditingActive(activeCard ? activeCard.title === "" : false);
     setIsExpanded(true);
     setIsClosing(false);
   }, [activeId]);
@@ -55,13 +55,13 @@ export function useActiveBlockEditor({
   };
 
   const handleBodyChange = (id, content) => {
-    setBodyBlocksDraft((prev) =>
+    setBlocksDraft((prev) =>
       prev.map((b) => (b.id === id ? { ...b, content } : b)),
     );
   };
 
   const handleBodyEnter = (id) => {
-    setBodyBlocksDraft((prev) => {
+    setBlocksDraft((prev) => {
       const idx = prev.findIndex((b) => b.id === id);
       const newBlock = { id: makeId(), type: "text", content: "" };
       setFocusBlockId(newBlock.id);
@@ -70,13 +70,13 @@ export function useActiveBlockEditor({
   };
 
   const handleBodyTypeChange = (id, type) => {
-    setBodyBlocksDraft((prev) =>
+    setBlocksDraft((prev) =>
       prev.map((b) => (b.id === id ? { ...b, type, content: "" } : b)),
     );
   };
 
   const handleBodyBackspaceEmpty = (id) => {
-    setBodyBlocksDraft((prev) => {
+    setBlocksDraft((prev) => {
       const idx = prev.findIndex((b) => b.id === id);
       if (idx <= 0) return prev;
       setFocusBlockId(prev[idx - 1].id);
@@ -85,16 +85,16 @@ export function useActiveBlockEditor({
   };
 
   const handleCancelActiveEdit = () => {
-    if (activeBlock) {
-      setTitleDraft(activeBlock.title);
-      setBodyBlocksDraft(parseBody(activeBlock.body || ""));
+    if (activeCard) {
+      setTitleDraft(activeCard.title);
+      setBlocksDraft(parseBody(activeCard.body || ""));
       setIsEditingActive(false);
     }
   };
 
   const handleSaveActive = async () => {
-    if (!activeBlock) return;
-    const cleanedBlocks = bodyBlocksDraft.filter(
+    if (!activeCard) return;
+    const cleanedBlocks = blocksDraft.filter(
       (b) => b.content.trim() !== "",
     );
     const finalBlocks =
@@ -103,7 +103,7 @@ export function useActiveBlockEditor({
         : [{ id: makeId(), type: "text", content: "" }];
     setSaving(true);
     try {
-      const updated = await patchBlock(activeBlock.id, {
+      const updated = await patchCard(activeCard.id, {
         title: titleDraft.trim(),
         body: serializeBody(finalBlocks),
       });
@@ -124,7 +124,7 @@ export function useActiveBlockEditor({
   return {
     titleDraft,
     setTitleDraft,
-    bodyBlocksDraft,
+    blocksDraft,
     focusBlockId,
     setFocusBlockId,
     isEditingActive,

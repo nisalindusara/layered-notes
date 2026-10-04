@@ -1,10 +1,10 @@
 import React from "react";
 import AnimationStyles from "../common/AnimationStyles";
 import KebabMenu from "../common/KebabMenu";
+import CardRow from "./CardRow";
 import BlockRow from "./BlockRow";
-import BodyBlockRow from "./BodyBlockRow";
 import DraftCard from "./DraftCard";
-import { renderBodyBlocks } from "../../utils/bodyHelpers";
+import { renderBlocks } from "../../utils/bodyHelpers";
 import { findNode } from "../../utils/treeHelpers";
 
 const styles = {
@@ -208,8 +208,8 @@ export default function TopicContentView({
   tree,
   path,
   activeId,
-  activeBlock,
-  parentBlock,
+  activeCard,
+  parentCard,
   topPaneList,
   drillInto,
   goUpOne,
@@ -217,7 +217,7 @@ export default function TopicContentView({
   jumpToCrumb,
   handleTopPaneSelect,
   handleMove,
-  setDeletingBlock,
+  setDeletingCard,
   drafts,
   savingDraft,
   addDraft,
@@ -248,7 +248,7 @@ export default function TopicContentView({
           </button>
         </div>
         <div style={styles.header}>
-          <div style={styles.eyebrow}>Block Platform</div>
+          <div style={styles.eyebrow}>Card Platform</div>
           <h1 style={styles.title}>Entries</h1>
         </div>
 
@@ -282,18 +282,18 @@ export default function TopicContentView({
           <>
             {!loading && tree.length === 0 && !error && (
               <div style={styles.empty}>
-                Nothing here yet. Add the first block below.
+                Nothing here yet. Add the first card below.
               </div>
             )}
             <div key="root" className="pane-animate" style={styles.topPaneList}>
-              {tree.map((block, i) => (
-                <BlockRow
-                  key={block.id}
-                  block={block}
+              {tree.map((card, i) => (
+                <CardRow
+                  key={card.id}
+                  card={card}
                   index={i}
                   onSelect={drillInto}
                   onMove={handleMove}
-                  onRequestDelete={setDeletingBlock}
+                  onRequestDelete={setDeletingCard}
                 />
               ))}
             </div>
@@ -312,23 +312,23 @@ export default function TopicContentView({
               ))}
             <div style={styles.addButtonWrap}>
               <button style={styles.addButton} onClick={() => addDraft(null)}>
-                <span style={styles.plusGlyph}>+</span> Add block
+                <span style={styles.plusGlyph}>+</span> Add card
               </button>
             </div>
           </>
         )}
 
-        {path.length > 0 && activeBlock && (
+        {path.length > 0 && activeCard && (
           <>
-            {parentBlock && (
+            {parentCard && (
               <div style={styles.parentCard} onClick={goUpOne}>
                 <div style={styles.parentCardLabel}>Container</div>
                 <div style={styles.parentCardTitle}>
-                  {parentBlock.title || "Untitled"}
+                  {parentCard.title || "Untitled"}
                 </div>
-                {parentBlock.body && (
+                {parentCard.body && (
                   <div style={styles.parentCardBody}>
-                    {renderBodyBlocks(parentBlock.body)}
+                    {renderBlocks(parentCard.body)}
                   </div>
                 )}
               </div>
@@ -338,10 +338,10 @@ export default function TopicContentView({
               className="pane-animate"
               style={styles.topPaneList}
             >
-              {topPaneList.map((block, i) =>
-                block.id === activeId && editor.showExpanded ? (
+              {topPaneList.map((card, i) =>
+                card.id === activeId && editor.showExpanded ? (
                   <div
-                    key={block.id}
+                    key={card.id}
                     style={styles.bottomPane}
                     className={
                       editor.isClosing ? "pane-closing" : "pane-animate"
@@ -365,7 +365,7 @@ export default function TopicContentView({
                         />
                       ) : (
                         <span style={styles.activeHeaderTitle}>
-                          {activeBlock.title || "Untitled"}
+                          {activeCard.title || "Untitled"}
                         </span>
                       )}
                       <KebabMenu
@@ -397,7 +397,7 @@ export default function TopicContentView({
                           },
                           {
                             label: "Delete",
-                            onClick: () => setDeletingBlock(activeBlock),
+                            onClick: () => setDeletingCard(activeCard),
                             danger: true,
                           },
                         ]}
@@ -421,8 +421,8 @@ export default function TopicContentView({
                                 gap: 2,
                               }}
                             >
-                              {editor.bodyBlocksDraft.map((b) => (
-                                <BodyBlockRow
+                              {editor.blocksDraft.map((b) => (
+                                <BlockRow
                                   key={b.id}
                                   block={b}
                                   autoFocus={editor.focusBlockId === b.id}
@@ -453,25 +453,25 @@ export default function TopicContentView({
                             </div>
                           </>
                         ) : (
-                          <div>{renderBodyBlocks(activeBlock.body)}</div>
+                          <div>{renderBlocks(activeCard.body)}</div>
                         )}
 
                         <div style={styles.divider} />
-                        <div style={styles.sectionLabel}>Nested blocks</div>
+                        <div style={styles.sectionLabel}>Nested cards</div>
                         <div style={styles.childrenList}>
-                          {(activeBlock.children || []).length === 0 && (
+                          {(activeCard.children || []).length === 0 && (
                             <div style={styles.emptyChildren}>
-                              No nested blocks yet.
+                              No nested cards yet.
                             </div>
                           )}
-                          {(activeBlock.children || []).map((child, ci) => (
-                            <BlockRow
+                          {(activeCard.children || []).map((child, ci) => (
+                            <CardRow
                               key={child.id}
-                              block={child}
+                              card={child}
                               index={ci}
                               onSelect={drillInto}
                               onMove={handleMove}
-                              onRequestDelete={setDeletingBlock}
+                              onRequestDelete={setDeletingCard}
                             />
                           ))}
                         </div>
@@ -498,24 +498,24 @@ export default function TopicContentView({
                             onClick={() => addDraft(activeId)}
                           >
                             <span style={styles.plusGlyph}>+</span> Add nested
-                            block
+                            card
                           </button>
                         </div>
                       </div>
                     </div>
                   </div>
                 ) : (
-                  <BlockRow
-                    key={block.id}
-                    block={block}
+                  <CardRow
+                    key={card.id}
+                    card={card}
                     index={i}
                     onSelect={
-                      block.id === activeId
+                      card.id === activeId
                         ? () => editor.setIsExpanded(true)
                         : handleTopPaneSelect
                     }
                     onMove={handleMove}
-                    onRequestDelete={setDeletingBlock}
+                    onRequestDelete={setDeletingCard}
                   />
                 ),
               )}
@@ -545,7 +545,7 @@ export default function TopicContentView({
                     addDraft(path.length === 1 ? null : path[path.length - 2])
                   }
                 >
-                  <span style={styles.plusGlyph}>+</span> Add block
+                  <span style={styles.plusGlyph}>+</span> Add card
                 </button>
               </div>
             </div>

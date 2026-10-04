@@ -84,7 +84,7 @@ export default function TopicsView({
           ← Subjects
         </button>
         <div style={styles.header}>
-          <div style={styles.eyebrow}>Block Platform</div>
+          <div style={styles.eyebrow}>Card Platform</div>
           <h1 style={styles.title}>{subjectName || "Topics"}</h1>
         </div>
         <div style={styles.topicsList}>

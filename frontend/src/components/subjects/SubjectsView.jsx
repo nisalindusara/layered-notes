@@ -75,7 +75,7 @@ export default function SubjectsView({
     <div style={styles.page}>
       <div style={styles.container}>
         <div style={styles.header}>
-          <div style={styles.eyebrow}>Block Platform</div>
+          <div style={styles.eyebrow}>Card Platform</div>
           <h1 style={styles.title}>Subjects</h1>
         </div>
         <div style={styles.subjectsGrid}>

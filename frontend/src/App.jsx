@@ -1,15 +1,15 @@
 import React, { useState, useEffect } from "react";
 import SubjectsView from "./components/subjects/SubjectsView";
 import TopicsView from "./components/topics/TopicsView";
-import TopicContentView from "./components/blocks/TopicContentView";
+import TopicContentView from "./components/cards/TopicContentView";
 import ConfirmDeleteDialog from "./components/common/ConfirmDeleteDialog";
 import { fetchSubjects, createSubject } from "./api/subjectsApi";
 import { fetchTopics, createTopic } from "./api/topicsApi";
-import { useBlockTree } from "./hooks/useBlockTree";
-import { useActiveBlockEditor } from "./hooks/useActiveBlockEditor";
+import { useCardTree } from "./hooks/useCardTree";
+import { useActiveCardEditor } from "./hooks/useActiveCardEditor";
 import { useDrafts } from "./hooks/useDrafts";
 
-export default function BlockPlatform() {
+export default function CardPlatform() {
   const [view, setView] = useState("subjects");
   const [subjects, setSubjects] = useState([]);
   const [topics, setTopics] = useState([]);
@@ -30,16 +30,16 @@ export default function BlockPlatform() {
       .catch((err) => setError(`Couldn't load topics: ${err.message}`));
   }, [selectedSubjectId]);
 
-  const blockTree = useBlockTree({ topicId: selectedTopicId, setError });
-  const editor = useActiveBlockEditor({
-    activeId: blockTree.activeId,
-    activeBlock: blockTree.activeBlock,
-    setTree: blockTree.setTree,
+  const cardTree = useCardTree({ topicId: selectedTopicId, setError });
+  const editor = useActiveCardEditor({
+    activeId: cardTree.activeId,
+    activeCard: cardTree.activeCard,
+    setTree: cardTree.setTree,
     setError,
   });
   const draftsHook = useDrafts({
     topicId: selectedTopicId,
-    setTree: blockTree.setTree,
+    setTree: cardTree.setTree,
     setError,
   });
 
@@ -64,9 +64,9 @@ export default function BlockPlatform() {
   const enterTopic = (subjectId, topicId) => {
     setSelectedSubjectId(subjectId);
     setSelectedTopicId(topicId);
-    blockTree.setPath([]);
-    blockTree.setTree([]);
-    setView("blocks");
+    cardTree.setPath([]);
+    cardTree.setTree([]);
+    setView("cards");
   };
 
   const backToSubjects = () => {
@@ -74,15 +74,15 @@ export default function BlockPlatform() {
     setSelectedSubjectId(null);
     setSelectedTopicId(null);
     setTopics([]);
-    blockTree.setPath([]);
-    blockTree.setTree([]);
+    cardTree.setPath([]);
+    cardTree.setTree([]);
   };
 
   const backToTopics = () => {
     setView("topics");
     setSelectedTopicId(null);
-    blockTree.setPath([]);
-    blockTree.setTree([]);
+    cardTree.setPath([]);
+    cardTree.setTree([]);
   };
 
   if (view === "subjects") {
@@ -120,20 +120,20 @@ export default function BlockPlatform() {
         subjectName={currentSubject?.name}
         topicName={currentTopic?.name}
         error={error}
-        loading={blockTree.loading}
-        tree={blockTree.tree}
-        path={blockTree.path}
-        activeId={blockTree.activeId}
-        activeBlock={blockTree.activeBlock}
-        parentBlock={blockTree.parentBlock}
-        topPaneList={blockTree.topPaneList}
-        drillInto={blockTree.drillInto}
-        goUpOne={blockTree.goUpOne}
-        goToRoot={blockTree.goToRoot}
-        jumpToCrumb={blockTree.jumpToCrumb}
-        handleTopPaneSelect={blockTree.handleTopPaneSelect}
-        handleMove={blockTree.handleMove}
-        setDeletingBlock={blockTree.setDeletingBlock}
+        loading={cardTree.loading}
+        tree={cardTree.tree}
+        path={cardTree.path}
+        activeId={cardTree.activeId}
+        activeCard={cardTree.activeCard}
+        parentCard={cardTree.parentCard}
+        topPaneList={cardTree.topPaneList}
+        drillInto={cardTree.drillInto}
+        goUpOne={cardTree.goUpOne}
+        goToRoot={cardTree.goToRoot}
+        jumpToCrumb={cardTree.jumpToCrumb}
+        handleTopPaneSelect={cardTree.handleTopPaneSelect}
+        handleMove={cardTree.handleMove}
+        setDeletingCard={cardTree.setDeletingCard}
         drafts={draftsHook.drafts}
         savingDraft={draftsHook.savingDraft}
         addDraft={draftsHook.addDraft}
@@ -145,12 +145,12 @@ export default function BlockPlatform() {
         onBackToSubjects={backToSubjects}
         onBackToTopics={backToTopics}
       />
-      {blockTree.deletingBlock && (
+      {cardTree.deletingCard && (
         <ConfirmDeleteDialog
-          block={blockTree.deletingBlock}
-          deleting={blockTree.deleting}
-          onConfirm={blockTree.handleDeleteConfirmed}
-          onCancel={() => blockTree.setDeletingBlock(null)}
+          card={cardTree.deletingCard}
+          deleting={cardTree.deleting}
+          onConfirm={cardTree.handleDeleteConfirmed}
+          onCancel={() => cardTree.setDeletingCard(null)}
         />
       )}
     </>

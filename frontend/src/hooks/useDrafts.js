@@ -1,11 +1,13 @@
 import { useState, useEffect } from "react";
 import { makeId, parseBody, serializeBody } from "../utils/bodyHelpers";
 import { addNodeToTree } from "../utils/treeHelpers";
-import { createBlock } from "../api/blocksApi";
+import { createCard } from "../api/cardsApi";
 
 export function useDrafts({ topicId, setTree, setError }) {
   const [drafts, setDrafts] = useState(() => {
     try {
+      // NOTE: key intentionally still "block-drafts" (predates the card/block
+      // rename) — changing it would orphan drafts already saved in browsers.
       const raw = localStorage.getItem("block-drafts");
       if (!raw) return [];
       const parsed = JSON.parse(raw);
@@ -69,7 +71,7 @@ export function useDrafts({ topicId, setTree, setError }) {
       : [{ id: makeId(), type: "text", content: "" }];
     setSavingDraft(true);
     try {
-      const newNode = await createBlock({
+      const newNode = await createCard({
         title: draft.title,
         body: serializeBody(finalBlocks),
         parentId: draft.parentId,
@@ -78,7 +80,7 @@ export function useDrafts({ topicId, setTree, setError }) {
       setTree((prev) => addNodeToTree(prev, draft.parentId, newNode));
       cancelDraft(id);
     } catch (err) {
-      setError(`Couldn't save that block: ${err.message}`);
+      setError(`Couldn't save that card: ${err.message}`);
     } finally {
       setSavingDraft(false);
     }

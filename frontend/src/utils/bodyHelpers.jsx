@@ -89,7 +89,7 @@ export function renderMathText(text) {
   return parts;
 }
 
-export function renderBodyBlocks(raw) {
+export function renderBlocks(raw) {
   const blocks = parseBody(raw);
   const hasContent = blocks.some((b) => b.content.trim() !== "");
   if (!hasContent) {

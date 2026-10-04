@@ -62,20 +62,20 @@ const styles = {
 };
 
 export default function ConfirmDeleteDialog({
-  block,
+  card,
   deleting,
   onConfirm,
   onCancel,
 }) {
-  const hasChildren = block.children && block.children.length > 0;
+  const hasChildren = card.children && card.children.length > 0;
   return (
     <div style={styles.overlay} onMouseDown={onCancel}>
       <div style={styles.dialog} onMouseDown={(e) => e.stopPropagation()}>
         <div style={styles.dialogEyebrow}>Delete entry</div>
-        <h2 style={styles.dialogTitle}>Delete "{block.title}"?</h2>
+        <h2 style={styles.dialogTitle}>Delete "{card.title}"?</h2>
         <div style={styles.confirmBody}>
           {hasChildren
-            ? "This will also permanently delete all of its nested blocks. This can't be undone."
+            ? "This will also permanently delete all of its nested cards. This can't be undone."
             : "This can't be undone."}
         </div>
         <div style={styles.dialogActions}>

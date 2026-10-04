@@ -35,8 +35,8 @@ const styles = {
   },
 };
 
-export default function BlockRow({
-  block,
+export default function CardRow({
+  card,
   index,
   muted,
   active,
@@ -53,29 +53,29 @@ export default function BlockRow({
         ...(active ? styles.rowActive : {}),
         borderColor: active ? "#B8912F" : hovered ? "#D3D8E2" : "transparent",
       }}
-      onClick={() => onSelect(block.id)}
+      onClick={() => onSelect(card.id)}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       role="button"
       tabIndex={0}
     >
       <span style={styles.rowTab}>{String(index + 1).padStart(3, "0")}</span>
-      <span style={styles.rowTitle}>{block.title || "Untitled"}</span>
+      <span style={styles.rowTitle}>{card.title || "Untitled"}</span>
       <KebabMenu
         actions={[
-          { label: "Move up", onClick: () => onMove(block.id, "up") },
-          { label: "Move down", onClick: () => onMove(block.id, "down") },
+          { label: "Move up", onClick: () => onMove(card.id, "up") },
+          { label: "Move down", onClick: () => onMove(card.id, "down") },
           {
             label: "Move to parent level",
-            onClick: () => onMove(block.id, "outdent"),
+            onClick: () => onMove(card.id, "outdent"),
           },
           {
             label: "Nest under previous",
-            onClick: () => onMove(block.id, "indent"),
+            onClick: () => onMove(card.id, "indent"),
           },
           {
             label: "Delete",
-            onClick: () => onRequestDelete(block),
+            onClick: () => onRequestDelete(card),
             danger: true,
           },
         ]}

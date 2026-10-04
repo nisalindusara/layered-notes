@@ -1,4 +1,4 @@
-# Block Platform — Postgres-backed
+# Card Platform — Postgres-backed
 
 Three pieces, three terminals:
 
@@ -6,7 +6,7 @@ Three pieces, three terminals:
 
 1. Create a free project at [supabase.com](https://supabase.com).
 2. In the dashboard, open the **SQL Editor**, paste the contents of
-   `backend/schema.sql`, and run it. This creates the `blocks` table.
+   `backend/schema.sql`, and run it. This creates the `cards` table.
 3. Go to **Project Settings → Database → Connection string → URI**.
    Copy the connection string (it looks like
    `postgresql://postgres.xxxx:[YOUR-PASSWORD]@aws-0-xx-xxxx-1.pooler.supabase.com:6543/postgres`).
@@ -29,8 +29,8 @@ npm start
 
 Runs on `http://localhost:4000`. Two endpoints:
 
-- `GET /api/blocks` — returns the whole tree as nested JSON
-- `POST /api/blocks` — body `{ title, body, parentId }` (`parentId: null` for a root block)
+- `GET /api/cards` — returns the whole tree as nested JSON
+- `POST /api/cards` — body `{ title, body, parentId }` (`parentId: null` for a root card)
 
 ## 3. Frontend (Vite + React)
 
@@ -50,12 +50,12 @@ VITE_API_BASE=http://your-api-host:4000
 
 ## What's persisted
 
-Every block (title, body, and its `parent_id`) is written to the `blocks`
+Every card (title, body, and its `parent_id`) is written to the `cards`
 table in Postgres as soon as you hit Save — refreshing the page now reloads
 the tree from the database instead of losing it.
 
 ## Not yet built
 
-- Editing or deleting a block
-- Reordering blocks within a level
+- Editing or deleting a card
+- Reordering cards within a level
 - Any auth — the API is wide open, fine for local dev only
